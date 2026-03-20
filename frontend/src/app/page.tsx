@@ -2,34 +2,29 @@
 // import { useState } from "react";
 
 // export default function Home() {
-//   // 1. The Hyper-Context React State
-//   // Logistics
 //   const [timing, setTiming] = useState("Right Now");
 //   const [transit, setTransit] = useState("🚶 Walk");
 //   const [distance, setDistance] = useState("Neighborhood");
   
-//   // Social
 //   const [party, setParty] = useState("Solo");
 //   const [budget, setBudget] = useState("$$");
   
-//   // Emotional
 //   const [mood, setMood] = useState("");
-//   const [vibe, setVibe] = useState(""); // The custom text box
+//   const [vibe, setVibe] = useState(""); 
   
 //   const [loading, setLoading] = useState(false);
 //   const [itinerary, setItinerary] = useState<any>(null);
+//   const [errorMsg, setErrorMsg] = useState("");
 
-//   // 2. The Engine Starter
 //   const generateItinerary = async () => {
-//     // Require either a mood pin OR custom text to proceed
 //     if (!mood && !vibe) return; 
     
 //     setLoading(true);
 //     setItinerary(null);
+//     setErrorMsg(""); 
 
 //     const currentTime = new Date().toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: 'numeric', hour12: true });
 
-//     // Packaging the massive context payload
 //     const payload = {
 //       timing: timing,
 //       transit: transit,
@@ -42,29 +37,56 @@
 //     };
 
 //     try {
-//       const response = await fetch("http://127.0.0.1:8000/api/route", {
+//      // 🚨 UPDATED: Now the phone knows exactly where to find your computer's Python brain!
+//       // Send the request to your true Wi-Fi IP
+//       const response = await fetch("http://192.168.1.76:8000/api/route", {
 //         method: "POST",
 //         headers: { "Content-Type": "application/json" },
 //         body: JSON.stringify(payload),
 //       });
 
+//       if (!response.ok) {
+//         throw new Error(`Server rejected the request. Status: ${response.status}`);
+//       }
+
 //       const data = await response.json();
 //       const parsedData = JSON.parse(data.reply);
-//       setItinerary(parsedData);
+
+//       if (parsedData.error) {
+//         setErrorMsg(`Backend Error: ${parsedData.error}`);
+//       } else {
+//         setItinerary(parsedData);
+//       }
       
-//     } catch (error) {
-//       console.error("Error fetching route:", error);
+//     } catch (error: any) {
+//       console.error("Fetch Error:", error);
+//       setErrorMsg(error.message || "Network Error: Failed to reach the Python server.");
 //     } finally {
 //       setLoading(false);
 //     }
 //   };
 
+//  // 🚀 THE FIXED DEEP LINKING ENGINE
+//   const executeRouting = (placeName: string) => {
+//     // 1. Clean up the destination string
+//     const destination = encodeURIComponent(`${placeName}, Chicago, IL`);
+
+//     // 2. Official App URLs
+//     if (transit.includes("Uber")) {
+//       window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${destination}`, '_blank');
+//     } else if (transit.includes("Walk")) {
+//       window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=walking`, '_blank');
+//     } else if (transit.includes("CTA")) {
+//       window.open(`https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=transit`, '_blank');
+//     } else {
+//       window.open(`https://www.google.com/maps/search/?api=1&query=${destination}`, '_blank');
+//     }
+//   };
+
 //   return (
 //     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-start p-4 sm:p-6 font-sans">
-      
 //       <div className="w-full max-w-3xl mt-8 sm:mt-12 flex flex-col items-center">
         
-//         {/* Header */}
 //         <div className="text-center mb-8">
 //           <h1 className="text-5xl sm:text-6xl font-black mb-3 tracking-tighter bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
 //             VibePath.
@@ -72,10 +94,14 @@
 //           <p className="text-neutral-400 text-base sm:text-lg font-medium">Your dynamic city companion.</p>
 //         </div>
 
-//         {/* The Master Context Dashboard */}
+//         {errorMsg && (
+//           <div className="w-full max-w-2xl bg-red-900/50 border border-red-500 text-red-200 px-6 py-4 rounded-2xl mb-8 font-bold text-center shadow-lg animate-fade-in">
+//             🚨 {errorMsg}
+//           </div>
+//         )}
+
 //         <div className="w-full bg-neutral-900/40 border border-neutral-800 rounded-[2rem] p-5 sm:p-8 shadow-2xl mb-12 backdrop-blur-sm">
           
-//           {/* SECTION 1: Logistics (When, How, How Far) */}
 //           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8 pb-8 border-b border-neutral-800/50">
 //             <div>
 //               <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">When?</label>
@@ -109,7 +135,6 @@
 //             </div>
 //           </div>
 
-//           {/* SECTION 2: Social & Budget */}
 //           <div className="flex flex-col sm:flex-row gap-6 mb-8 pb-8 border-b border-neutral-800/50">
 //             <div className="flex-1">
 //               <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">Who's Going?</label>
@@ -133,11 +158,8 @@
 //             </div>
 //           </div>
 
-//           {/* SECTION 3: The Mood & Vibe */}
 //           <div>
 //             <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">What's the goal tonight?</label>
-            
-//             {/* The Mood Pins */}
 //             <div className="flex flex-wrap gap-2 mb-4">
 //               {["🧘 Reset Mind", "🌆 Explore City", "🗣️ Deep Talks", "🪩 Turn Up", "📸 Aesthetic", "🍔 Food Coma"].map((pin) => (
 //                 <button 
@@ -150,7 +172,6 @@
 //               ))}
 //             </div>
 
-//             {/* The Custom Text Box */}
 //             <div className="flex bg-neutral-950 border border-neutral-700 rounded-2xl p-1 focus-within:border-purple-500 transition-all shadow-inner">
 //               <input 
 //                 type="text" 
@@ -169,14 +190,10 @@
 //               </button>
 //             </div>
 //           </div>
-
 //         </div>
 
-//         {/* Results Area */}
 //         {itinerary && itinerary.plan && (
 //           <div className="w-full max-w-2xl animate-fade-in flex flex-col items-center pb-20">
-            
-//             {/* Results Title and Badges */}
 //             <div className="text-center mb-6">
 //               <h2 className="text-3xl font-bold text-white mb-3">{itinerary.title}</h2>
 //               <div className="flex flex-wrap justify-center gap-2">
@@ -189,7 +206,6 @@
 //               </div>
 //             </div>
 
-//             {/* THE CONCIERGE WEATHER & OUTFIT CARD */}
 //             <div className="w-full bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-800/50 rounded-2xl p-5 mb-8 flex flex-col sm:flex-row items-center sm:items-start gap-4 shadow-lg backdrop-blur-sm">
 //               <div className="text-4xl">☁️</div>
 //               <div>
@@ -202,35 +218,32 @@
 //               </div>
 //             </div>
             
-//             {/* The Itinerary Cards Map Loop */}
 //             <div className="space-y-6 w-full">
 //               {itinerary.plan.map((step: any, index: number) => (
 //                 <div key={index} className="bg-neutral-900 border border-neutral-800 hover:border-neutral-700 transition-colors rounded-3xl p-6 flex flex-col sm:flex-row gap-6 items-center sm:items-start shadow-lg relative overflow-hidden">
-                  
-//                   {/* Left edge gradient accent */}
 //                   <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-purple-500 to-pink-500"></div>
-                  
-//                   {/* Time Badge */}
 //                   <div className="bg-neutral-950 px-5 py-3 rounded-2xl border border-neutral-800 shrink-0 shadow-inner">
 //                     <span className="text-purple-400 font-mono font-bold text-lg">{step.time}</span>
 //                   </div>
-                  
-//                   {/* Location Details */}
 //                   <div className="flex-1 text-center sm:text-left">
 //                     <h3 className="text-xl font-bold mb-1 text-white">{step.title}</h3>
 //                     <p className="text-pink-400 text-sm font-bold mb-3 flex items-center justify-center sm:justify-start gap-2">
 //                       📍 {step.place}
 //                     </p>
 //                     <p className="text-neutral-400 text-sm mb-5 leading-relaxed">{step.description}</p>
-//                     <button className="w-full sm:w-auto bg-neutral-800 text-white px-8 py-3 rounded-full font-bold text-sm hover:bg-neutral-700 border border-neutral-700 transition-colors">
-//                       {step.action}
+                    
+//                     {/* 🚀 THE UPDATED ACTION BUTTON */}
+//                     <button 
+//                       onClick={() => executeRouting(step.place)}
+//                       className="w-full sm:w-auto bg-white text-black px-8 py-3 rounded-full font-bold text-sm hover:bg-gray-200 transition-colors shadow-md flex items-center justify-center gap-2"
+//                     >
+//                       {transit.includes("Uber") ? "🚗 Request Uber" : "🗺️ Get Directions"}
 //                     </button>
-//                   </div>
 
+//                   </div>
 //                 </div>
 //               ))}
 //             </div>
-
 //           </div>
 //         )}
 //       </div>
@@ -239,11 +252,18 @@
 // }
 
 
-
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
+  // 🚨 THE MOBILE HYDRATION FIX
+  // This forces React to wait until the phone is completely ready before rendering the buttons
+  const [mounted, setMounted] = useState(false);
+  
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   const [timing, setTiming] = useState("Right Now");
   const [transit, setTransit] = useState("🚶 Walk");
   const [distance, setDistance] = useState("Neighborhood");
@@ -256,8 +276,6 @@ export default function Home() {
   
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState<any>(null);
-  
-  // 🚨 THE NEW BUG DETECTOR STATE
   const [errorMsg, setErrorMsg] = useState("");
 
   const generateItinerary = async () => {
@@ -265,7 +283,7 @@ export default function Home() {
     
     setLoading(true);
     setItinerary(null);
-    setErrorMsg(""); // Clear old errors
+    setErrorMsg(""); 
 
     const currentTime = new Date().toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: 'numeric', hour12: true });
 
@@ -281,22 +299,20 @@ export default function Home() {
     };
 
     try {
-      // Changed to localhost instead of 127.0.0.1
-     const response = await fetch("http://127.0.0.1:8000/api/route", {
+      // Make sure this is still your real Wi-Fi IP!
+      const response = await fetch("http://192.168.1.76:8000/api/route", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
-      // Catch backend crashes (like 500 errors)
       if (!response.ok) {
-        throw new Error(`Server rejected the request (Status ${response.status}). Is Python running?`);
+        throw new Error(`Server rejected the request. Status: ${response.status}`);
       }
 
       const data = await response.json();
       const parsedData = JSON.parse(data.reply);
 
-      // Catch Gemini API errors wrapped in our JSON
       if (parsedData.error) {
         setErrorMsg(`Backend Error: ${parsedData.error}`);
       } else {
@@ -305,11 +321,39 @@ export default function Home() {
       
     } catch (error: any) {
       console.error("Fetch Error:", error);
-      setErrorMsg(error.message || "Network Error: Failed to reach the Python server on port 8000.");
+      setErrorMsg(error.message || "Network Error: Failed to reach the Python server.");
     } finally {
       setLoading(false);
     }
   };
+
+  // 🚀 THE FIXED NATIVE MOBILE LINKS
+// 🚀 THE REAL, WORKING DEEP LINKS
+  // 🚀 THE REAL, OFFICIAL NATIVE MOBILE LINKS
+  // 🚀 THE REAL, OFFICIAL NATIVE MOBILE LINKS
+  const executeRouting = (placeName: string) => {
+    const destination = encodeURIComponent(`${placeName}, Chicago, IL`);
+
+    if (transit.includes("Uber")) {
+      window.location.href = `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${destination}`;
+    } else if (transit.includes("Walk")) {
+      // Official Google Maps walking directions
+      window.location.href = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=walking`;
+    } else if (transit.includes("CTA")) {
+      // Official Google Maps public transit directions
+      window.location.href = `https://www.google.com/maps/dir/?api=1&destination=${destination}&travelmode=transit`;
+    } else {
+      // Official Google Maps general search
+      window.location.href = `https://www.google.com/maps/search/?api=1&query=${destination}`;
+    }
+  };
+
+
+
+  // 🚨 If the phone hasn't mounted yet, return a blank background to prevent the error
+  if (!mounted) {
+    return <div className="min-h-screen bg-[#0a0a0a]"></div>;
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-start p-4 sm:p-6 font-sans">
@@ -322,7 +366,6 @@ export default function Home() {
           <p className="text-neutral-400 text-base sm:text-lg font-medium">Your dynamic city companion.</p>
         </div>
 
-        {/* 🚨 THE BUG DETECTOR UI */}
         {errorMsg && (
           <div className="w-full max-w-2xl bg-red-900/50 border border-red-500 text-red-200 px-6 py-4 rounded-2xl mb-8 font-bold text-center shadow-lg animate-fade-in">
             🚨 {errorMsg}
@@ -460,9 +503,14 @@ export default function Home() {
                       📍 {step.place}
                     </p>
                     <p className="text-neutral-400 text-sm mb-5 leading-relaxed">{step.description}</p>
-                    <button className="w-full sm:w-auto bg-neutral-800 text-white px-8 py-3 rounded-full font-bold text-sm hover:bg-neutral-700 border border-neutral-700 transition-colors">
-                      {step.action}
+                    
+                    <button 
+                      onClick={() => executeRouting(step.place)}
+                      className="w-full sm:w-auto bg-white text-black px-8 py-3 rounded-full font-bold text-sm hover:bg-gray-200 transition-colors shadow-md flex items-center justify-center gap-2"
+                    >
+                      {transit.includes("Uber") ? "🚗 Request Uber" : "🗺️ Get Directions"}
                     </button>
+
                   </div>
                 </div>
               ))}
