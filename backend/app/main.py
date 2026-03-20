@@ -1,12 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-# This line connects our main file to the AI engine we built
+from typing import Optional
 from app.services.gemini_engine import generate_vibe_itinerary
 
 app = FastAPI(title="Vibepath API")
 
-# The "Open Door" policy so your browser doesn't block the request
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -15,27 +14,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# This defines the "package" we expect from the frontend
+# 1. The Expanded Data Contract
+# This exactly matches the 'payload' we built in Next.js
 class VibeRequest(BaseModel):
-    prompt: str
+    timing: str
+    transit: str
+    distance: str
+    party: str
+    budget: str
+    mood: Optional[str] = ""   # Optional because they might not click a pin
+    prompt: Optional[str] = "" # Optional because they might leave the text box blank
+    time_context: str
 
 @app.get("/")
 def home():
     return {"status": "online", "engine": "Vibepath V1"}
-
+ 
 @app.post("/api/route")
-async def get_route(request: VibeRequest):
-    """
-    This is the main nerve center. 
-    It receives the vibe, sends it to Gemini, and returns the itinerary.
-    """
-    print(f"--- 🚀 ROUTING TO GEMINI: {request.prompt} ---")
+def get_route(request: VibeRequest): 
+    print(f"--- 🚀 ROUTING CONTEXT: {request.party} | {request.budget} | {request.transit} ---")
     
-    # 1. Call the AI engine
-    ai_itinerary = generate_vibe_itinerary(request.prompt)
+    # 2. Pass the ENTIRE request object to the AI engine
+    ai_itinerary = generate_vibe_itinerary(request)
     
-    # 2. Print the result to your terminal for debugging
     print(f"--- ✅ GEMINI RESPONDED ---")
-    
-    # 3. Send the final plan back to your purple UI
     return {"reply": ai_itinerary}
