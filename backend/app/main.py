@@ -25,6 +25,7 @@ class VibeRequest(BaseModel):
     mood: Optional[str] = ""   # Optional because they might not click a pin
     prompt: Optional[str] = "" # Optional because they might leave the text box blank
     time_context: str
+    location: str 
 
 @app.get("/")
 def home():
