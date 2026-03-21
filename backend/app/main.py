@@ -1,11 +1,18 @@
+import os
+import json
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from dotenv import load_dotenv
+from supabase import create_client, Client
 from app.services.gemini_engine import generate_vibe_itinerary
+
+# Load environment variables (This grabs your URL and Key!)
+load_dotenv()
 
 app = FastAPI(title="Vibepath API")
 
+# The CORS Unlocker
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,28 +21,66 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 1. The Expanded Data Contract
-# This exactly matches the 'payload' we built in Next.js
+# Initialize Supabase Connection
+supabase_url: str = os.getenv("SUPABASE_URL")
+supabase_key: str = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(supabase_url, supabase_key)
+
 class VibeRequest(BaseModel):
     timing: str
     transit: str
     distance: str
     party: str
     budget: str
-    mood: Optional[str] = ""   # Optional because they might not click a pin
-    prompt: Optional[str] = "" # Optional because they might leave the text box blank
+    mood: str
+    prompt: str
     time_context: str
+    location: str
 
-@app.get("/")
-def home():
-    return {"status": "online", "engine": "Vibepath V1"}
- 
 @app.post("/api/route")
-def get_route(request: VibeRequest): 
-    print(f"--- 🚀 ROUTING CONTEXT: {request.party} | {request.budget} | {request.transit} ---")
+async def generate_route(req: VibeRequest):
+    print("🚨 THE FRONTEND KNOCKED ON THE DOOR!")
     
-    # 2. Pass the ENTIRE request object to the AI engine
-    ai_itinerary = generate_vibe_itinerary(request)
+    # 1. Ask Gemini to build the route
+    raw_itinerary = generate_vibe_itinerary(req)
     
-    print(f"--- ✅ GEMINI RESPONDED ---")
-    return {"reply": ai_itinerary}
+    try:
+        # 2. Parse the text back into a Python dictionary
+        itinerary_data = json.loads(raw_itinerary)
+        
+        # 3. Save the payload securely to Supabase
+        print("💾 Saving route to PostgreSQL database...")
+        db_response = supabase.table("itineraries").insert({
+            "title": itinerary_data.get("title", "VibePath Route"),
+            "vibe": req.mood or req.prompt,
+            "full_json": itinerary_data
+        }).execute()
+        
+        # 4. Extract the brand new, unique URL ID
+        route_id = db_response.data[0]['id']
+        print(f"✅ Route securely saved! ID: {route_id}")
+        
+        # 5. Send both the itinerary AND the new ID back to React
+        return {"reply": raw_itinerary, "route_id": route_id}
+        
+    except Exception as e:
+        print(f"❌ Database Error: {e}")
+        # Fallback: If the DB goes down, still give the user their route!
+        return {"reply": raw_itinerary, "route_id": None}
+
+        # 🚨 NEW: The "Read" Endpoint for Shared Links
+@app.get("/api/route/{route_id}")
+async def get_shared_route(route_id: str):
+    print(f"👀 Someone is looking at shared route: {route_id}")
+    try:
+        # Ask Supabase for the specific itinerary
+        db_response = supabase.table("itineraries").select("*").eq("id", route_id).execute()
+        
+        if not db_response.data:
+            return {"error": "Route not found. It may have expired or been deleted."}
+            
+        return {"success": True, "data": db_response.data[0]}
+        
+    except Exception as e:
+        print(f"❌ Read Error: {e}")
+        return {"error": "Could not retrieve the shared route."}

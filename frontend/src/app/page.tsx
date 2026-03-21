@@ -22,6 +22,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [itinerary, setItinerary] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  
+  // 🚨 NEW: States for our Viral Share Loop
+  const [routeId, setRouteId] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // --- ACTIONS ---
   const grabExactLocation = () => {
@@ -49,6 +53,7 @@ export default function Home() {
 
     setLoading(true);
     setItinerary(null);
+    setRouteId(null);
     setErrorMsg("");
 
     const currentTime = new Date().toLocaleString('en-US', { weekday: 'long', hour: 'numeric', minute: 'numeric', hour12: true });
@@ -74,8 +79,15 @@ export default function Home() {
       const data = await response.json();
       const parsedData = JSON.parse(data.reply);
 
-      if (parsedData.error) setErrorMsg(`Backend Error: ${parsedData.error}`);
-      else setItinerary(parsedData);
+      if (parsedData.error) {
+        setErrorMsg(`Backend Error: ${parsedData.error}`);
+      } else {
+        setItinerary(parsedData);
+        // 🚨 NEW: Capture the Database ID from Python!
+        if (data.route_id) {
+          setRouteId(data.route_id);
+        }
+      }
 
     } catch (error: any) {
       console.error("Fetch Error:", error);
@@ -93,6 +105,15 @@ export default function Home() {
   const openUber = (placeName: string) => {
     const destination = encodeURIComponent(`${placeName}, ${location || 'Chicago, IL'}`);
     window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${destination}`, '_blank');
+  };
+
+  // 🚨 NEW: The Copy Link Function
+  const handleShare = () => {
+    if (!routeId) return;
+    const shareLink = `${window.location.origin}/route/${routeId}`;
+    navigator.clipboard.writeText(shareLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
   };
 
   // Prevent hydration mismatch
@@ -213,7 +234,7 @@ export default function Home() {
         {itinerary && itinerary.plan && (
           <div className="w-full animate-fade-in flex flex-col items-center pb-24">
 
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <h2 className="text-3xl sm:text-4xl font-black text-white mb-4 tracking-tight">{itinerary.title}</h2>
               <div className="flex flex-wrap justify-center gap-3">
                 <span className="px-4 py-1.5 bg-purple-900/30 text-purple-400 rounded-full text-xs font-bold border border-purple-700/50 uppercase tracking-wide">
@@ -224,6 +245,22 @@ export default function Home() {
                 </span>
               </div>
             </div>
+
+            {/* 🚨 NEW: Share Button */}
+            {routeId && (
+              <div className="mb-8">
+                <button
+                  onClick={handleShare}
+                  className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all border flex items-center gap-2 shadow-lg ${
+                    copied 
+                    ? 'bg-green-500/20 text-green-400 border-green-500/50' 
+                    : 'bg-[#1a1a1a] text-white border-neutral-700 hover:bg-[#2a2a2a]'
+                  }`}
+                >
+                  {copied ? "✅ Link Copied!" : "🔗 Share this Vibe"}
+                </button>
+              </div>
+            )}
 
             <div className="w-full bg-[#13131a] border border-[#2a2a35]/50 rounded-2xl p-5 mb-8 flex items-center gap-4 shadow-lg">
               <div className="text-3xl">☁️</div>
