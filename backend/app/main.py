@@ -1,4 +1,6 @@
 import os
+import requests
+from datetime import datetime
 import json
 import stripe
 from fastapi import FastAPI, Request, HTTPException 
@@ -138,7 +140,35 @@ async def create_checkout_session(req: CheckoutRequest):
         print(f"❌ Stripe Error: {e}")
         return {"error": str(e)}
 
-
+# 🚨 NEW: The City Pulse Frontend API
+@app.get("/api/events")
+async def get_frontend_events(city: str = "Chicago"):
+    tm_key = os.getenv("TICKETMASTER_API_KEY")
+    if not tm_key:
+        return {"events": []}
+        
+    try:
+        now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
+        url = f"https://app.ticketmaster.com/discovery/v2/events.json?apikey={tm_key}&city={city}&startDateTime={now_iso}&sort=date,asc&size=3"
+        
+        response = requests.get(url, timeout=5)
+        data = response.json()
+        
+        if response.status_code != 200 or "_embedded" not in data:
+            return {"events": []}
+            
+        events = data["_embedded"]["events"]
+        event_list = []
+        for e in events:
+            name = e.get("name", "Unknown Event")
+            venues = e.get("_embedded", {}).get("venues", [{}])
+            venue_name = venues[0].get("name", "Unknown Venue")
+            event_list.append({"name": name, "venue": venue_name})
+            
+        return {"events": event_list}
+    except Exception as e:
+        print(f"Error fetching frontend events: {e}")
+        return {"events": []}
 
 # 🚨 The Webhook Engine (Listens for Stripe's Secret Ping)
 @app.post("/api/webhook")

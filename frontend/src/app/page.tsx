@@ -17,6 +17,17 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
+    // Fetch Live Chicago Events
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/events");
+        const data = await res.json();
+        if (data.events) setLiveEvents(data.events);
+      } catch (err) {
+        console.error("Failed to fetch events", err);
+      }
+    };
+    fetchEvents();
     
     // Helper function to check the database
     const checkProStatus = async (userId: string) => {
@@ -71,6 +82,8 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
   const [routeId, setRouteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [liveEvents, setLiveEvents] = useState<any[]>([]);
+  const [fetchingEvents, setFetchingEvents] = useState(false);
   
   // 🚨 NEW: Loading state for the Stripe button
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -88,7 +101,7 @@ export default function Home() {
     setCheckoutLoading(true);
     try {
       // 2. The exact URL, Port, Headers, and User ID payload
-      const response = await fetch("http://127.0.0.1:8000/api/checkout", {
+      const response = await fetch("http://localhost:8000/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: user.id }), 
@@ -152,7 +165,7 @@ export default function Home() {
     };
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/route", {
+      const response = await fetch("http://localhost:8000/api/route", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error(`Server rejected request: ${response.status}`);
@@ -236,6 +249,35 @@ export default function Home() {
 
         {errorMsg && <div className="w-full bg-red-900/20 border border-red-500/50 text-red-300 px-6 py-4 rounded-2xl mb-8 font-medium text-center text-sm">🚨 {errorMsg}</div>}
 
+{/* 🔥 TONIGHT IN CHICAGO DASHBOARD */}
+        {liveEvents.length > 0 && (
+          <div className="w-full bg-[#111111] border border-orange-500/30 rounded-[2rem] p-6 sm:p-8 shadow-[0_0_30px_rgba(249,115,22,0.15)] mb-8 relative overflow-hidden animate-fade-in">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-pink-500"></div>
+            <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
+              <span className="text-2xl">🔥</span> Tonight in Chicago
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {liveEvents.map((event, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    setMood("🎫 Live Event");
+                    setVibe(`I'm going to ${event.name} at ${event.venue}. Build me a pre-game and post-game route nearby.`);
+                  }}
+                  className="text-left p-4 bg-[#1a1a1a] border border-neutral-800 hover:border-orange-500/50 hover:bg-orange-500/10 rounded-xl transition-all group flex flex-col justify-between"
+                >
+                  <p className="text-orange-400 text-xs font-bold uppercase tracking-wider mb-2 group-hover:text-orange-300 flex items-center gap-1">
+                    🎫 {event.venue}
+                  </p>
+                  <p className="text-sm font-bold text-white leading-snug">{event.name}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+
+
         {/* Control Panel */}
         <div className="w-full bg-[#111111] border border-neutral-800/80 rounded-[2rem] p-6 sm:p-8 shadow-2xl mb-12">
           
@@ -260,7 +302,7 @@ export default function Home() {
           <div>
             <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">What's the goal today?</label>
             <div className="flex flex-wrap gap-2 mb-5">
-              {["🏃 Running Route", "🚶 Walking Route", "☕ Coffee Run", "🐕 Walk Dog", "🧘 Reset Mind", "🌆 Explore City", "🗣️ Deep Talks", "🪩 Turn Up", "📸 Aesthetic", "🍔 Food Coma"].map(pin => (
+              {["🏃 Running Route", "🚶 Walking Route", "☕ Coffee Run", "🐕 Walk Dog", "🧘 Reset Mind", "🌆 Explore City", "🗣️ Deep Talks", "🪩 Turn Up", "📸 Aesthetic", "🍔 Food Coma", "🎫 Live Event"].map(pin => (
                 <button key={pin} onClick={() => setMood(mood === pin ? "" : pin)} className={`px-4 py-2 rounded-full text-sm font-semibold border ${mood === pin ? 'bg-white text-black border-white' : 'bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:border-neutral-600'}`}>{pin}</button>
               ))}
             </div>
