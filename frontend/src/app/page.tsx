@@ -1,6 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase"; 
+import { GiMagicHat } from "react-icons/gi"; // magic-related icon
+import { FaChess } from "react-icons/fa";   // any fun icon
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -57,18 +59,30 @@ export default function Home() {
 
   // 🚨 NEW: The Stripe Checkout Trigger
   const handleGoPro = async () => {
+    // 1. Make sure they are logged in!
+    if (!user) {
+      alert("Please sign in first!");
+      return;
+    }
+    
     setCheckoutLoading(true);
     try {
-      const response = await fetch("http://127.0.0.1:8080/api/checkout", {
+      // 2. The exact URL, Port, Headers, and User ID payload
+      const response = await fetch("http://127.0.0.1:8000/api/checkout", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.id }), 
       });
+      
       const data = await response.json();
       
       if (data.checkout_url) {
-        // Redirect the user to Stripe's secure payment page!
+        // 3. Blast off to Stripe!
         window.location.href = data.checkout_url;
       } else {
-        alert("Failed to generate checkout: " + data.error);
+        // 4. Catch exactly what Python is mad about if it fails
+        const errorMessage = data.error || (data.detail && JSON.stringify(data.detail)) || "Unknown Error";
+        alert("Failed to generate checkout: " + errorMessage);
       }
     } catch (error) {
       console.error("Checkout Error:", error);
@@ -118,7 +132,7 @@ export default function Home() {
     };
 
     try {
-      const response = await fetch("http://127.0.0.1:8080/api/route", {
+      const response = await fetch("http://127.0.0.1:8000/api/route", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
       });
       if (!response.ok) throw new Error(`Server rejected request: ${response.status}`);
