@@ -9,6 +9,7 @@ export default function Home() {
   
   // --- AUTH STATE ---
   const [user, setUser] = useState<any>(null);
+  const [isPro, setIsPro] = useState(false); // 🚨 NEW: Tracks if they paid!
   const [email, setEmail] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authMsg, setAuthMsg] = useState("");
@@ -16,18 +17,37 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
+    
+    // Helper function to check the database
+    const checkProStatus = async (userId: string) => {
+      const { data } = await supabase.from('profiles').select('is_pro').eq('id', userId).single();
+      if (data && data.is_pro) {
+        setIsPro(true);
+      }
+    };
+
+    // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user || null);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user || null);
+      if (session?.user) checkProStatus(session.user.id);
     });
 
-    // 🚨 NEW: Listen for Stripe Redirects!
+    // Listen for login/logout events
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user || null);
+      if (session?.user) {
+        checkProStatus(session.user.id);
+      } else {
+        setIsPro(false);
+      }
+    });
+
+    // Handle Stripe Redirects
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('payment') === 'success') {
       alert("🎉 Payment Successful! Welcome to VibePath Pro!");
-      window.history.replaceState(null, '', window.location.pathname); // Clean up the URL
+      window.history.replaceState(null, '', window.location.pathname);
+      setIsPro(true); // Instantly upgrade them in the UI!
     }
     if (urlParams.get('payment') === 'cancelled') {
       window.history.replaceState(null, '', window.location.pathname);
@@ -165,14 +185,20 @@ export default function Home() {
           <div className="flex items-center gap-4">
             <span className="text-sm text-neutral-400">Hey, {user.email?.split('@')[0]} 👋</span>
             
-            {/* The Money Printer Button */}
-            <button 
-              onClick={handleGoPro} 
-              disabled={checkoutLoading}
-              className="text-xs font-bold px-5 py-2 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-300 hover:to-orange-400 text-black rounded-full transition-all shadow-[0_0_15px_rgba(251,191,36,0.3)] disabled:opacity-50"
-            >
-              {checkoutLoading ? "Loading..." : "✨ Go Pro"}
-            </button>
+            {/* 🚨 THE UPGRADED PAYWALL LOGIC 🚨 */}
+            {isPro ? (
+              <span className="text-xs font-black px-5 py-2 bg-gradient-to-r from-amber-400 to-yellow-300 text-black rounded-full shadow-[0_0_20px_rgba(251,191,36,0.4)] tracking-wide cursor-default">
+                👑 PRO MEMBER
+              </span>
+            ) : (
+              <button 
+                onClick={handleGoPro} 
+                disabled={checkoutLoading}
+                className="text-xs font-bold px-5 py-2 bg-gradient-to-r from-neutral-800 to-neutral-700 hover:from-amber-400 hover:to-orange-500 text-white hover:text-black border border-neutral-600 hover:border-transparent rounded-full transition-all duration-300 disabled:opacity-50"
+              >
+                {checkoutLoading ? "Loading..." : "✨ Go Pro"}
+              </button>
+            )}
 
             <button onClick={handleLogout} className="text-xs font-bold px-4 py-2 bg-neutral-900 hover:bg-neutral-800 rounded-full transition-colors border border-neutral-800">Sign Out</button>
           </div>
@@ -259,6 +285,23 @@ export default function Home() {
               </div>
             </div>
 
+            {/* 🚨 THE RESTORED WEATHER WIDGET (Mapped to your custom backend) 🚨 */}
+            {(itinerary.weather || itinerary.outfit_tip) && (
+              <div className="w-full max-w-2xl bg-gradient-to-r from-blue-900/30 to-indigo-900/30 border border-blue-700/50 p-4 rounded-2xl mb-8 flex flex-col gap-2 shadow-lg">
+                {itinerary.weather && (
+                  <div className="flex items-center gap-2 text-blue-300 font-bold text-sm">
+                    <span className="text-lg">☁️</span>
+                    <span>Live Weather: {itinerary.weather}</span>
+                  </div>
+                )}
+                {itinerary.outfit_tip && (
+                  <p className="text-blue-200/80 text-xs leading-relaxed text-left pl-7">
+                    <span className="font-bold text-blue-300">Concierge Tip:</span> {itinerary.outfit_tip}
+                  </p>
+                )}
+              </div>
+            )}
+
             {routeId && (
               <div className="mb-8">
                 <button onClick={handleShare} className={`px-6 py-2.5 rounded-full font-bold text-sm transition-all border flex items-center gap-2 ${copied ? 'bg-green-500/20 text-green-400 border-green-500/50' : 'bg-[#1a1a1a] text-white border-neutral-700 hover:bg-[#2a2a2a]'}`}>
@@ -289,4 +332,4 @@ export default function Home() {
       </div>
     </div>
   );
-} 
+}
