@@ -1,5 +1,6 @@
 import os
 import json
+import stripe
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -25,6 +26,9 @@ app.add_middleware(
 supabase_url: str = os.getenv("SUPABASE_URL")
 supabase_key: str = os.getenv("SUPABASE_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
+
+# 🚨 NEW: Initialize Stripe Connection
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 class VibeRequest(BaseModel):
     timing: str
@@ -84,3 +88,34 @@ async def get_shared_route(route_id: str):
     except Exception as e:
         print(f"❌ Read Error: {e}")
         return {"error": "Could not retrieve the shared route."}
+
+        # 🚨 NEW: The Monetization Endpoint
+@app.post("/api/checkout")
+async def create_checkout_session():
+    print("💸 Someone clicked GO PRO!")
+    try:
+        # Ask Stripe to build a secure, hosted checkout page
+        session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'product_data': {
+                        'name': 'VibePath Pro (Unlimited Pass)',
+                        'description': 'Unlock unlimited daily routes, hidden speakeasies, and premium concierge features.',
+                    },
+                    'unit_amount': 499, # $4.99 (Stripe reads everything in cents!)
+                },
+                'quantity': 1,
+            }],
+            mode='payment',
+            # Where Stripe sends them after they swipe their card:
+            success_url="http://localhost:3000/?payment=success",
+            cancel_url="http://localhost:3000/?payment=cancelled",
+        )
+        print(f"✅ Stripe Checkout URL Generated!")
+        return {"checkout_url": session.url}
+        
+    except Exception as e:
+        print(f"❌ Stripe Error: {e}")
+        return {"error": str(e)}
