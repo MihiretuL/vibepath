@@ -55,15 +55,57 @@ class CheckoutRequest(BaseModel):
 @app.post("/api/route")
 async def generate_route(req: VibeRequest):
     print("🚨 THE FRONTEND KNOCKED ON THE DOOR!")
+
+    # 1. 🛑 THE BOUNCER: Check if they are logged in
+    if not req.user_id:
+        return {"reply": json.dumps({"error": "Please Sign In to generate a route."})}
+
+    try:
+        # 2. 🗄️ THE VAULT: Check their profile in Supabase
+        profile_res = supabase.table("profiles").select("is_pro, routes_generated").eq("id", req.user_id).execute()
+        
+        is_pro = False
+        routes_generated = 0
+
+        if len(profile_res.data) > 0:
+            user_profile = profile_res.data[0]
+            is_pro = user_profile.get("is_pro") or False
+            routes_generated = user_profile.get("routes_generated") or 0
+        else:
+            # 🚨 THE FIX: If they don't have a profile row yet, create one right now!
+            print(f"🛠️ Creating missing profile row for user {req.user_id}")
+            supabase.table("profiles").insert({
+                "id": req.user_id, 
+                "is_pro": False, 
+                "routes_generated": 0
+            }).execute()
+
+        # 3. 💸 THE PAYWALL: Block them if they hit the limit!
+        if not is_pro and routes_generated >= 2:
+            print(f"🔒 PAYWALL HIT: User {req.user_id} is out of free routes.")
+            return {"reply": json.dumps({
+                "error": "PAYWALL_HIT", 
+                "message": "You've reached your limit of 2 free routes! Please upgrade to Pro to unlock unlimited generations."
+            }), "route_id": None}
+        
+        # 4. 🔢 THE COUNTER: Add +1 if they are on the free tier
+        if not is_pro:
+            print(f"✅ Counting route {routes_generated + 1} for free user {req.user_id}")
+            supabase.table("profiles").update({
+                "routes_generated": routes_generated + 1
+            }).eq("id", req.user_id).execute()
+
+    except Exception as e:
+        print(f"❌ Database check completely failed: {e}")
     
-    # 1. Ask Gemini to build the route
+    # 5. Ask Gemini to build the route
     raw_itinerary = generate_vibe_itinerary(req)
     
     try:
-        # 2. Parse the text back into a Python dictionary
+        # 6. Parse the text back into a Python dictionary
         itinerary_data = json.loads(raw_itinerary)
         
-        # 3. Save the payload securely to Supabase
+        # 7. Save the payload securely to Supabase
         print("💾 Saving route to PostgreSQL database...")
         
         insert_data = {
@@ -78,11 +120,11 @@ async def generate_route(req: VibeRequest):
 
         db_response = supabase.table("itineraries").insert(insert_data).execute()
         
-        # 4. Extract the brand new, unique URL ID
+        # 8. Extract the brand new, unique URL ID
         route_id = db_response.data[0]['id']
         print(f"✅ Route securely saved! ID: {route_id}")
         
-        # 5. Send both the itinerary AND the new ID back to React
+        # 9. Send both the itinerary AND the new ID back to React
         return {"reply": raw_itinerary, "route_id": route_id}
         
     except Exception as e:

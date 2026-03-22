@@ -171,7 +171,15 @@ export default function Home() {
       if (!response.ok) throw new Error(`Server rejected request: ${response.status}`);
       const data = await response.json();
       const parsedData = JSON.parse(data.reply);
-      if (parsedData.error) setErrorMsg(`Backend Error: ${parsedData.error}`);
+      if (parsedData.error) {
+        if (parsedData.error === "PAYWALL_HIT") {
+          setErrorMsg("🔒 " + parsedData.message);
+          // Optional: You could automatically trigger the checkout window here!
+          // handleGoPro(); 
+        } else {
+          setErrorMsg(`🚨 ${parsedData.error}`);
+        }
+      }
       else { setItinerary(parsedData); if (data.route_id) setRouteId(data.route_id); }
     } catch (error: any) {
       setErrorMsg(error.message || "Failed to reach server.");

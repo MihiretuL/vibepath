@@ -12,7 +12,7 @@ export default function SharedRoutePage() {
   useEffect(() => {
     const fetchRoute = async () => {
       try {
-        const response = await fetch(`http://127.0.0.1:8080/api/route/${params.id}`);
+        const response = await fetch(`http://localhost:8000/api/route/${params.id}`);
         const data = await response.json();
 
         if (data.error) throw new Error(data.error);
