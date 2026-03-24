@@ -182,7 +182,6 @@ async def create_checkout_session(req: CheckoutRequest):
         print(f"❌ Stripe Error: {e}")
         return {"error": str(e)}
 
-# 🚨 NEW: The City Pulse Frontend API
 @app.get("/api/events")
 async def get_frontend_events(city: str = "Chicago"):
     tm_key = os.getenv("TICKETMASTER_API_KEY")
@@ -191,7 +190,8 @@ async def get_frontend_events(city: str = "Chicago"):
         
     try:
         now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        url = f"https://app.ticketmaster.com/discovery/v2/events.json?apikey={tm_key}&city={city}&startDateTime={now_iso}&sort=date,asc&size=3"
+        # 🚨 CHANGED: size=10 to grab more events!
+        url = f"https://app.ticketmaster.com/discovery/v2/events.json?apikey={tm_key}&city={city}&startDateTime={now_iso}&sort=date,asc&size=10"
         
         response = requests.get(url, timeout=5)
         data = response.json()
@@ -205,7 +205,18 @@ async def get_frontend_events(city: str = "Chicago"):
             name = e.get("name", "Unknown Event")
             venues = e.get("_embedded", {}).get("venues", [{}])
             venue_name = venues[0].get("name", "Unknown Venue")
-            event_list.append({"name": name, "venue": venue_name})
+            
+            # 🚨 NEW: Grab the time and format it (e.g. 19:30:00 -> 7:30 PM)
+            raw_time = e.get("dates", {}).get("start", {}).get("localTime", "")
+            display_time = "Time TBD"
+            if raw_time:
+                try:
+                    time_obj = datetime.strptime(raw_time, "%H:%M:%S")
+                    display_time = time_obj.strftime("%I:%M %p").lstrip("0")
+                except:
+                    display_time = raw_time
+
+            event_list.append({"name": name, "venue": venue_name, "time": display_time})
             
         return {"events": event_list}
     except Exception as e:

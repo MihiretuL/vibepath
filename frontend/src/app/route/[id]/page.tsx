@@ -79,29 +79,50 @@ export default function SharedRoutePage() {
               </div>
             </div>
 
-            <div className="space-y-4 w-full">
+           {/* 🚨 THE FIXED SHARED CARDS */}
+            <div className="space-y-6 w-full max-w-2xl mx-auto">
               {itinerary.plan.map((step: any, index: number) => (
                 <div key={index} className="bg-[#111111] border border-neutral-800 rounded-2xl p-6 flex flex-col relative overflow-hidden group">
-                  <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-pink-500 to-purple-600"></div>
-                  <div className="flex flex-col py-1 pl-2">
+                  {/* The Vertical Accent Line */}
+                  <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-pink-500 to-purple-600"></div>
+                  
+                  <div className="flex flex-col py-1 pl-6">
                     <div className="mb-4">
                       <span className="bg-black border border-neutral-800 text-pink-400 font-bold text-xs tracking-widest uppercase px-4 py-1.5 rounded-full inline-block">
                         {step.time || "Time TBD"}
                       </span>
                     </div>
-                    <h3 className="text-xl font-bold text-white mb-1">{step.title}</h3>
-                    <p className="text-pink-500 text-xs font-bold mb-3 tracking-wide">📍 {step.place}</p>
+                    <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
+                    
+                    {/* 🚨 FIXED: Only ONE Location line! */}
+                    <p className="text-pink-500 text-xs font-bold mb-3 tracking-wide">
+                      📍 {step.place}
+                    </p>
+                    
+                    {/* Price Tag */}
+                    {step.cost_estimate && (
+                      <div className="mb-4">
+                        <span className="text-emerald-400 text-[10px] font-bold tracking-widest uppercase bg-emerald-900/20 px-3 py-1.5 rounded-md border border-emerald-800/50">
+                          💵 {step.cost_estimate}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* 🚨 FIXED: Only ONE Description line! */}
                     <p className="text-neutral-400 text-sm mb-6 leading-relaxed">{step.description}</p>
+                    
                     <div className="flex flex-wrap gap-3 mt-auto">
-                      <button onClick={() => openMaps(step.place)} className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 transition-colors flex items-center gap-2 shadow-md">
-                        🗺️ Google Maps
-                      </button>
+                      <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(step.place + ", Chicago, IL")}`, "_blank")} className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 shadow-md">🗺️ Google Maps</button>
+                      
+{/* 🚨 THE RETURN OF THE UBER BUTTON */}
+<button onClick={() => window.open(`https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(step.place + ", Chicago, IL")}`, "_blank")} className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 shadow-md">🚗 Request Uber</button>
                     </div>
                   </div>
                 </div>
               ))}
             </div>
 
+            
             {/* The Call to Action Loop */}
             <div className="mt-16 w-full bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-pink-500/30 rounded-2xl p-8 text-center">
               <h3 className="text-2xl font-bold text-white mb-3">Want to plan your own night?</h3>

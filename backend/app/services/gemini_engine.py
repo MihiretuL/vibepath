@@ -83,11 +83,11 @@ def generate_vibe_itinerary(req) -> str:
         # 3. GRAB THE LIVE DATA PULSE
         current_weather = get_live_weather()
         live_events = get_live_events(req.location) # 🚨 Fetching events!
-        
         system_instruction = f"""
-        You are a premium Chicago concierge. Generate a 3-step route based strictly on the user constraints.
+        You are a premium, hyper-local Chicago concierge. Generate a 3-step route based strictly on the user constraints.
         
         USER CONTEXT:
+        - Starting Location: {req.location}
         - Current Local Time: {req.time_context}
         - Current Weather: {current_weather}
         - 🚨 LIVE CITY EVENTS TODAY: 
@@ -98,19 +98,24 @@ def generate_vibe_itinerary(req) -> str:
         - Party: {req.party}
         - Budget: {req.budget}
         - Mood: {req.mood}
-        - Specifics: {req.prompt}
+        - Specifics / Anchor: {req.prompt}
 
         CRITICAL RULES:
-        1. VIBE AWARENESS: If the Mood is "Walking Route", "Running Route", or "Walk Dog", the steps MUST focus on physical paths, parks, lakefront trails, or scenic architectural streets. Do NOT just list three restaurants. The movement is the main event. You may end with a casual coffee/drink if appropriate, but steps 1 and 2 must be the route itself.
-        2. EVENT AWARENESS: Look at the LIVE CITY EVENTS. If an event matches the user's mood (e.g., "Turn Up" and there is a concert), try to build the itinerary around attending or pre-gaming that event! If the user wants a quiet vibe ("Reset Mind"), route them AWAY from those event venues to avoid crowds.
-        3. STRICT TRANSIT: The user selected "{req.transit}". Do NOT mention driving or parking if they chose Walk/CTA. Do NOT mention the CTA/trains if they chose Walk or Drive. 
-        4. WEATHER AWARENESS: Write a 1-sentence 'outfit_tip' suggesting what to wear specifically for "{req.transit}" in "{current_weather}".
-        5. Keep location descriptions short (Max 15 words).
-        6. Return ONLY valid JSON.
+        1. 🗺️ STRICT GEO-FENCING (NO TOURIST TRAPS): The user is starting near "{req.location}". The ENTIRE 3-step route MUST stay within a "{req.distance}" radius of this exact starting point. DO NOT route them to downtown tourist traps (Millennium Park, Navy Pier, Riverwalk) UNLESS their starting location is explicitly downtown. Prioritize real, local neighborhood gems, hidden parks, and nearby streets.
+        2. ⚓ ANCHOR DESTINATION: The user provided specific details here: "{req.prompt}". If they mentioned a specific place, restaurant, or venue, you MUST make that place Step 1 or Step 2. Build the rest of the route geographically around that anchor place so it makes sense for "{req.transit}".
+        3. VIBE AWARENESS: If the Mood is "Walking Route", "Running Route", or "Walk Dog", the steps MUST focus on physical paths, parks, or scenic neighborhood streets near their starting location. The movement is the main event. 
+        4. EVENT AWARENESS: Look at the LIVE CITY EVENTS. If an event matches the user's mood and is within their radius, try to include it. If not, ignore the events.
+        5. STRICT TRANSIT & REALITY CHECK: The user selected "{req.transit}". 
+        - If they chose "Walk", the route MUST stay within a 2-mile radius of their starting location, EVEN IF the Radius constraint says "Anywhere". Humans cannot walk across the entire city.
+        - Do NOT mention driving/parking if they chose Walk/CTA. Do NOT mention CTA/trains if they chose Walk or Drive. Ensure the distance between Steps 1, 2, and 3 is logical for this transit type.
+        6. WEATHER AWARENESS: Write a 1-sentence 'outfit_tip' suggesting what to wear specifically for "{req.transit}" in "{current_weather}".
+        7. Keep location descriptions short (Max 15 words).
+        8. Return ONLY valid JSON.
+        9. BUDGET & PRICING: The user has a budget of "{req.budget}". For EVERY step, you MUST provide a realistic 'cost_estimate'. If it is a park or walking path, write "Free". If it's a cafe/restaurant, estimate the cost per person (e.g., "$$ - Approx $25"). If it's a museum or venue, estimate the entry fee (e.g., "$15 Entry").
 
         JSON SCHEMA:
         {{
-          "title": "string (Catchy title)",
+          "title": "string (Catchy local title)",
           "vibe": "string",
           "weather": "string (Repeat the Current Weather)",
           "outfit_tip": "string",
@@ -118,13 +123,16 @@ def generate_vibe_itinerary(req) -> str:
             {{
               "time": "string",
               "title": "string (Actionable step)",
-              "place": "string (Specific path, park, or venue)",
+              "place": "string (Specific local path, park, or venue)",
+              
               "description": "string",
+              "cost_estimate": "string",
               "action": "string"
             }}
           ]
         }}
         """
+       
         
         # 4. USE THE NEW GENERATION METHOD
         response = client.models.generate_content(
