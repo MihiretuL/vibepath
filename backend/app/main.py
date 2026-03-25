@@ -14,14 +14,14 @@ from app.services.gemini_engine import generate_vibe_itinerary
 # Load environment variables (This grabs your URL and Key!)
 load_dotenv()
 
-app = FastAPI(title="Vibepath API")
+app = FastAPI(title="Pathzu API")
 
 # The CORS Unlocker
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
-    allow_methods=["*"],
+    allow_methods=["*"],F
     allow_headers=["*"],
 )
 
@@ -109,7 +109,7 @@ async def generate_route(req: VibeRequest):
         print("💾 Saving route to PostgreSQL database...")
         
         insert_data = {
-            "title": itinerary_data.get("title", "VibePath Route"),
+            "title": itinerary_data.get("title", "Pathzu Route"),
             "vibe": req.mood or req.prompt,
             "full_json": itinerary_data
         }
@@ -161,7 +161,7 @@ async def create_checkout_session(req: CheckoutRequest):
                 'price_data': {
                     'currency': 'usd',
                     'product_data': {
-                        'name': 'VibePath Pro (Unlimited Pass)',
+                        'name': 'Pathzu Pro (Unlimited Pass)',
                         'description': 'Unlock unlimited daily routes, hidden speakeasies, and premium concierge features.',
                     },
                     'unit_amount': 499, # $4.99 (Stripe reads everything in cents!)

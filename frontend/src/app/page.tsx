@@ -62,7 +62,7 @@ export default function Home() {
     // Handle Stripe Redirects
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("payment") === "success") {
-      alert("🎉 Payment Successful! Welcome to VibePath Pro!");
+      alert("🎉 Payment Successful! Welcome to Pathzu Pro!");
       window.history.replaceState(null, "", window.location.pathname);
       setIsPro(true); // Instantly upgrade them in the UI!
     }
@@ -306,7 +306,7 @@ export default function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="text-3xl font-black mb-2 tracking-tight">
-              Welcome to VibePath.
+              Welcome to Pathzu.
             </h2>
             <p className="text-neutral-400 text-sm mb-6">
               Sign in to save your favorite routes and unlock premium features.
@@ -341,8 +341,11 @@ export default function Home() {
       <div className="w-full max-w-3xl mt-4 flex flex-col items-center">
         <div className="text-center mb-10">
           <h1 className="text-5xl sm:text-6xl font-black mb-4 tracking-tighter bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-            VibePath.
+            Pathzu.
           </h1>
+          <p className="text-neutral-400 text-lg md:text-xl font-medium mb-8 max-w-xl mx-auto">
+            Smart Paths, for real life.
+          </p>
         </div>
 
         {errorMsg && (

@@ -1,1 +1,1 @@
-# vibepath
+# Pathzu

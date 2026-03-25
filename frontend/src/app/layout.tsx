@@ -12,9 +12,10 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// 🚨 BRAND NEW PATHZU METADATA
 export const metadata: Metadata = {
-  title: "VibePath",
-  description: "Your dynamic city companion",
+  title: "Pathzu | Your Instant Chicago Itinerary",
+  description: "AI-powered urban exploration and routing.",
 };
 
 export default function RootLayout({
