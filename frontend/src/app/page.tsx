@@ -356,18 +356,21 @@ export default function Home() {
           <div className="w-full bg-[#111111] border border-orange-500/30 rounded-[2rem] p-6 sm:p-8 shadow-[0_0_30px_rgba(249,115,22,0.15)] mb-8 relative overflow-hidden animate-fade-in">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-pink-500"></div>
             <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
-              <span className="text-2xl">🔥</span> Tonight in Chicago
+              <span className="text-2xl">🔥</span> Trending in Chicago
             </h3>
             {/* 🚨 NEW: Horizontal Scroll Container */}
+
             {/* 🚨 UPGRADED: Premium Horizontal Scroll */}
-            <div className="flex overflow-x-auto gap-4 pb-6 snap-x snap-mandatory hide-scrollbar px-1">
+            <div className="flex overflow-x-auto gap-4 pb-6 pt-2 snap-x snap-mandatory no-scrollbar px-1">
+              {/* 👻 Ghost box successfully deleted from right here! */}
+
               {liveEvents.map((event, idx) => (
                 <button
                   key={idx}
                   onClick={() => {
                     setMood("🎫 Live Event");
                     setVibe(
-                      `I'm going to ${event.name} at ${event.venue} at ${event.time}. Build me a pre-game and post-game route nearby.`,
+                      `I'm attending ${event.name} at ${event.venue}. The event starts at ${event.time}. Ignore my current local time. Build a pre-game and post-game itinerary anchored perfectly around this event's start time.`,
                     );
                   }}
                   // 🚨 NEW: Wider cards (300px), better padding, and snap-center
@@ -400,8 +403,6 @@ export default function Home() {
             </div>
           </div>
         )}
-
-        {/* Control Panel */}
 
         {/* Control Panel */}
         <div className="w-full bg-[#111111] border border-neutral-800/80 rounded-[2rem] p-6 sm:p-8 shadow-2xl mb-12">
@@ -517,21 +518,22 @@ export default function Home() {
               </div>
             </div>
           </div>
-           {/* Goals & Prompts */}
+          {/* Goals & Prompts */}
           <div>
             <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">
               What&apos;s the goal today?
             </label>
             <div className="flex flex-wrap gap-2 mb-5">
               {[
-                "🏃 Running Route",
                 "🚶 Walking Route",
+                "🍷 Chill Date",
+                "🧘 Reset Mind",
                 "☕ Coffee Run",
                 "🐕 Walk Dog",
-                "🧘 Reset Mind",
+
                 "🌆 Explore City",
                 "🗣️ Deep Talks",
-                "🍷 Chill Date",
+                "🏃 Running Route",
                 "🪩 Turn Up",
                 "📸 Aesthetic",
                 "🍔 Food Coma",
