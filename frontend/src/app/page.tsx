@@ -233,7 +233,7 @@ export default function Home() {
       } else {
         // 🚨 THE FIX: Catch the ID no matter what Python named it!
         const savedId = data.route_id || data.id;
-        if (savedId) parsedData.share_id = savedId;
+        if (savedId) parsedData.id = savedId;
 
         setItinerary(parsedData);
       }
@@ -620,7 +620,7 @@ export default function Home() {
               </p>
             </div>
 
-            {itinerary.share_id && (
+            {itinerary.id && (
               <div className="mt-6">
                 <button
                   onClick={() => {
