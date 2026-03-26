@@ -223,17 +223,26 @@ export default function Home() {
       const data = await response.json();
 
       const parsedData = JSON.parse(data.reply);
-
       if (parsedData.error) {
         if (parsedData.error === "PAYWALL_HIT") {
           setErrorMsg("🔒 " + parsedData.message);
         } else {
           setErrorMsg(`🚨 ${parsedData.error}`);
         }
-      } else {
-        // 🚨 THE FIX: Catch the ID no matter what Python named it!
-        const savedId = data.route_id || data.id;
-        if (savedId) parsedData.id = savedId;
+      }
+
+      // 👇 REPLACE THIS ENTIRE ELSE BLOCK 👇
+      else {
+        // 🛡️ THE SAFETY NET: Find the ID no matter what name Python used!
+        const finalId =
+          data.id || data.route_id || parsedData.id || parsedData.share_id;
+
+        if (finalId) {
+          parsedData.id = finalId; // Force it into .id so the button can see it
+          console.log("✅ ID Found:", finalId);
+        } else {
+          console.error("❌ No ID found in backend response:", data);
+        }
 
         setItinerary(parsedData);
       }
