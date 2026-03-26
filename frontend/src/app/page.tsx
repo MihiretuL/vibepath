@@ -625,13 +625,13 @@ export default function Home() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `https://pathzu.com/route/${itinerary.share_id}`,
+                      `https://pathzu.com/route/${itinerary.id}`,
                     );
                     alert("Link copied! Text it to your friends.");
                   }}
                   className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-400 rounded-full text-xs font-bold transition-colors border border-neutral-800 flex items-center gap-2 mx-auto"
                 >
-                  🔗 Share this Vibe
+                  🔗 Share this Path
                 </button>
               </div>
             )}
