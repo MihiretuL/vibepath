@@ -170,8 +170,8 @@ async def create_checkout_session(req: CheckoutRequest):
             }],
             mode='payment',
             # Where Stripe sends them after they swipe their card:
-            success_url="http://localhost:3000/?payment=success",
-            cancel_url="http://localhost:3000/?payment=cancelled",
+            success_url="https://pathzu.com/",
+            cancel_url="https://pathzu.com/",
             # THE SECRET SAUCE: Attach the user_id to the Stripe receipt!
             client_reference_id=req.user_id 
         )

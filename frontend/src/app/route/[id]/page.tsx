@@ -13,7 +13,7 @@ export default function SharedRoutePage() {
     const fetchRoute = async () => {
       try {
         const response = await fetch(
-          `http://localhost:8000/api/route/${params.id}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/route/${params.id}`,
         );
         const data = await response.json();
 

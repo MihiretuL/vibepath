@@ -20,7 +20,10 @@ export default function Home() {
     // Fetch Live Chicago Events
     const fetchEvents = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/events");
+        // 👇 CHANGED THIS LINE 👇
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/events`,
+        );
         const data = await res.json();
         if (data.events) setLiveEvents(data.events);
       } catch (err) {
@@ -107,11 +110,15 @@ export default function Home() {
     setCheckoutLoading(true);
     try {
       // 2. The exact URL, Port, Headers, and User ID payload
-      const response = await fetch("http://localhost:8000/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id }),
-      });
+      // 👇 CHANGED THIS LINE 👇
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/checkout`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.id }),
+        },
+      );
 
       const data = await response.json();
 
@@ -204,11 +211,15 @@ export default function Home() {
     };
 
     try {
-      const response = await fetch("http://localhost:8000/api/route", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      // 👇 CHANGED THIS LINE 👇
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/route`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
       const data = await response.json();
 
       const parsedData = JSON.parse(data.reply);
@@ -614,7 +625,7 @@ export default function Home() {
                 <button
                   onClick={() => {
                     navigator.clipboard.writeText(
-                      `http://localhost:3000/route/${itinerary.share_id}`,
+                      `https://pathzu.com/route/${itinerary.share_id}`,
                     );
                     alert("Link copied! Text it to your friends.");
                   }}
