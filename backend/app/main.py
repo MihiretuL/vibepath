@@ -125,12 +125,12 @@ async def generate_route(req: VibeRequest):
         print(f"✅ Route securely saved! ID: {route_id}")
         
         # 9. Send both the itinerary AND the new ID back to React
-        return {"reply": raw_itinerary, "route_id": route_id}
+        return {"reply": raw_itinerary, "id": route_id, "route_id": route_id}
         
     except Exception as e:
         print(f"❌ Database Error: {e}")
         # Fallback: If the DB goes down, still give the user their route!
-        return {"reply": raw_itinerary, "route_id": None}
+        return {"reply": raw_itinerary,"id": None, "route_id": None}
 
 # 🚨 The "Read" Endpoint for Shared Links
 @app.get("/api/route/{route_id}")
