@@ -1,3 +1,4 @@
+import asyncio 
 import os
 import requests
 from datetime import datetime
@@ -98,8 +99,32 @@ async def generate_route(req: VibeRequest):
     except Exception as e:
         print(f"❌ Database check completely failed: {e}")
     
-    # 5. Ask Gemini to build the route
-    raw_itinerary = generate_vibe_itinerary(req)
+    # 5. Ask Gemini to build the route (WITH AUTO-RETRY)
+    max_retries = 3
+    raw_itinerary = None
+    
+    for attempt in range(max_retries):
+        try:
+            print(f"🤖 Asking AI for route (Attempt {attempt + 1}/{max_retries})...")
+            # Try to get the route
+            raw_itinerary = generate_vibe_itinerary(req)
+            
+            # If it works perfectly, break out of the retry loop!
+            break 
+            
+        except Exception as e:
+            print(f"⚠️ AI hiccup (503 or timeout): {e}")
+            if attempt < max_retries - 1:
+                print("🔄 Waiting 2 seconds and trying again...")
+                await asyncio.sleep(2)  # Pause before hitting the AI again
+            else:
+                print("❌ AI completely failed after 3 attempts.")
+                # The Graceful Catch: Tell the frontend the AI is busy, don't crash!
+                return {
+                    "reply": json.dumps({"error": "The AI concierge is currently assisting too many users! Please try again in 30 seconds."}), 
+                    "id": None,
+                    "route_id": None
+                }
     
     try:
         # 6. Parse the text back into a Python dictionary
@@ -124,13 +149,21 @@ async def generate_route(req: VibeRequest):
         route_id = db_response.data[0]['id']
         print(f"✅ Route securely saved! ID: {route_id}")
         
-        # 9. Send both the itinerary AND the new ID back to React
-        return {"reply": raw_itinerary, "id": route_id, "route_id": route_id}
+        # 9. Send BOTH names back just to be completely bulletproof
+        return {
+            "reply": raw_itinerary, 
+            "id": route_id,         
+            "route_id": route_id
+        }
         
     except Exception as e:
-        print(f"❌ Database Error: {e}")
-        # Fallback: If the DB goes down, still give the user their route!
-        return {"reply": raw_itinerary,"id": None, "route_id": None}
+        print(f"❌ DATABASE ERROR (The button will be hidden!): {e}")
+        # Fallback: If the DB fails, still give the user their route!
+        return {
+            "reply": raw_itinerary, 
+            "id": None, 
+            "route_id": None
+        }
 
 # 🚨 The "Read" Endpoint for Shared Links
 @app.get("/api/route/{route_id}")

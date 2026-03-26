@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
 import { GiMagicHat } from "react-icons/gi"; // magic-related icon
 import { FaChess } from "react-icons/fa"; // any fun icon
+import Link from "next/link";
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -298,6 +299,14 @@ export default function Home() {
               </button>
             )}
 
+            {/* 👇 THE NEW VAULT LINK 👇 */}
+            <Link
+              href="/vault"
+              className="text-xs font-bold px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full transition-colors border border-neutral-700"
+            >
+              🗄️ My Vault
+            </Link>
+
             <button
               onClick={handleLogout}
               className="text-xs font-bold px-4 py-2 bg-neutral-900 hover:bg-neutral-800 rounded-full transition-colors border border-neutral-800"
@@ -314,7 +323,6 @@ export default function Home() {
           </button>
         )}
       </div>
-
       {/* LOGIN MODAL */}
       {!user && showLoginModal && (
         <div
@@ -356,7 +364,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
       {/* --- REST OF THE UI --- */}
       <div className="w-full max-w-3xl mt-4 flex flex-col items-center">
         <div className="text-center mb-10">
@@ -596,9 +603,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-
       {/* RESULTS AREA */}
-
       {/* 🚨 ITINERARY DISPLAY */}
       {itinerary && itinerary.plan && (
         <div className="w-full animate-fade-in flex flex-col items-center pb-24">
