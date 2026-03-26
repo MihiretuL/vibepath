@@ -364,7 +364,7 @@ export default function Home() {
             Pathzu.
           </h1>
           <p className="text-neutral-400 text-lg md:text-xl font-medium mb-8 max-w-xl mx-auto">
-            Smart Paths, for real life.
+            Smart paths, for real life.
           </p>
         </div>
 
@@ -633,11 +633,15 @@ export default function Home() {
               <div className="mt-6">
                 <button
                   onClick={() => {
-                    const link = `https://pathzu.com/route/${itinerary.id}`;
-                    navigator.clipboard.writeText(link);
-                    alert("Testing Link: " + link); // This will show us the truth!
+                    // 1. Copy the link quietly in the background
+                    navigator.clipboard.writeText(
+                      `https://pathzu.com/route/${itinerary.id}`,
+                    );
+
+                    // 2. Show the clean, user-friendly popup!
+                    alert("Link copied! Text it to your friends.");
                   }}
-                  className="px-4 py-2 bg-neutral-900 hover:bg-neutral-800 text-neutral-400 rounded-full text-xs font-bold transition-colors border border-neutral-800 flex items-center gap-2 mx-auto"
+                  className="px-6 py-3 bg-white hover:bg-neutral-200 text-black rounded-full text-sm font-bold transition-all shadow-[0_5px_20px_rgba(255,255,255,0.1)] flex items-center gap-2 mx-auto active:scale-95"
                 >
                   🔗 Share this Path
                 </button>

@@ -51,7 +51,7 @@ export default function SharedRoutePage() {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
         <div className="text-6xl mb-4">💔</div>
-        <h1 className="text-2xl font-bold text-red-400 mb-4">Vibe Not Found</h1>
+        <h1 className="text-2xl font-bold text-red-400 mb-4">Pathzu Not Found</h1>
         <p className="text-neutral-400 mb-8">{errorMsg}</p>
         <button
           onClick={() => router.push("/")}
