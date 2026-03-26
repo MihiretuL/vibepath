@@ -13,7 +13,7 @@ const supabase = createClient(
 export default function VaultPage() {
   const [itineraries, setItineraries] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     async function fetchVault() {
