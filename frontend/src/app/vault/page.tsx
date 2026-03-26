@@ -11,8 +11,8 @@ const supabase = createClient(
 );
 
 export default function VaultPage() {
-  const [itineraries, setItineraries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [itineraries, setItineraries] = useState<any[]>([]);
+  const [loading, setLoading] = useState<any>(true);
   const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
