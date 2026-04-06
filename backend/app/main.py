@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from typing import Optional
-from app.services.gemini_engine import generate_vibe_itinerary
+from app.services.gemini_engine import generate_vibe_itinerary, swap_spot_with_ai
+from typing import Dict, Any # Make sure this is imported at the top!
 
 # Load environment variables (This grabs your URL and Key!)
 load_dotenv()
@@ -47,6 +48,10 @@ class VibeRequest(BaseModel):
     time_context: str
     location: str
     user_id: Optional[str] = None  # Allows the frontend to pass the user's ID!
+class SwapRequest(BaseModel):
+    vibe: str
+    spot_to_replace: Dict[str, Any]
+    current_route: Dict[str, Any]
 
 class CheckoutRequest(BaseModel):
     user_id: str
@@ -296,3 +301,21 @@ async def stripe_webhook(request: Request):
 
     # Always return a 200 OK so Stripe knows we received the message
     return {"status": "success"}
+# 🚨 The Swapping Endpoint
+@app.post("/api/swap")
+async def swap_route_spot(req: SwapRequest):
+    print(f"🔄 SWAP INITIATED! Looking for a new spot for vibe: {req.vibe}")
+    
+    try:
+        # Ask Gemini for the replacement (We will build this function next!)
+        new_spot = swap_spot_with_ai(req)
+        
+        # Log the success
+        spot_name = new_spot.get('title', 'Unknown Spot')
+        print(f"✅ AI found a replacement: {spot_name}")
+        
+        return new_spot
+        
+    except Exception as e:
+        print(f"❌ Swap failed: {e}")
+        return {"error": "Failed to generate a new spot."}

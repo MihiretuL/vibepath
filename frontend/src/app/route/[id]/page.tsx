@@ -8,6 +8,7 @@ export default function SharedRoutePage() {
   const [itinerary, setItinerary] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchRoute = async () => {
@@ -51,7 +52,9 @@ export default function SharedRoutePage() {
     return (
       <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center text-white p-8">
         <div className="text-6xl mb-4">💔</div>
-        <h1 className="text-2xl font-bold text-red-400 mb-4">Pathzu Not Found</h1>
+        <h1 className="text-2xl font-bold text-red-400 mb-4">
+          Pathzu Not Found
+        </h1>
         <p className="text-neutral-400 mb-8">{errorMsg}</p>
         <button
           onClick={() => router.push("/")}
@@ -62,6 +65,39 @@ export default function SharedRoutePage() {
       </div>
     );
   }
+  const handleSwapSpot = async (index: number, currentSpot: any) => {
+    // 1. Turn on the loading spinner just for this one spot
+    setSwappingIndex(index);
+
+    try {
+      // 2. Ask your Python backend for a replacement using your env variables!
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/swap`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vibe: itinerary.title || "custom vibe", // Use the title as context
+            spot_to_replace: currentSpot,
+            current_route: itinerary, // itinerary is already the full JSON!
+          }),
+        },
+      );
+
+      const newSpot = await response.json();
+
+      // 3. Update your React state to replace the old spot with the new one!
+      const updatedItinerary = { ...itinerary };
+      updatedItinerary.plan[index] = newSpot;
+      setItinerary(updatedItinerary);
+    } catch (error) {
+      console.error("Failed to swap spot:", error);
+      alert("The AI had a hiccup trying to find a new spot. Try again!");
+    } finally {
+      // 4. Turn off the loading spinner
+      setSwappingIndex(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-start p-4 sm:p-8 font-sans selection:bg-pink-500/30">
@@ -157,6 +193,19 @@ export default function SharedRoutePage() {
                       >
                         🚗 Request Uber
                       </button>
+
+                      {/* 👇 THE BRAND NEW SWAP BUTTON 👇 */}
+                      <button
+                        onClick={() => handleSwapSpot(index, step)}
+                        disabled={swappingIndex === index}
+                        className="bg-neutral-900 border border-neutral-700 text-neutral-300 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-800 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50"
+                      >
+                        {swappingIndex === index ? (
+                          <span className="animate-spin text-pink-500">⏳</span>
+                        ) : (
+                          "🔄 Swap this spot"
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -166,7 +215,7 @@ export default function SharedRoutePage() {
             {/* The Call to Action Loop */}
             <div className="mt-16 w-full bg-gradient-to-r from-purple-900/40 to-pink-900/40 border border-pink-500/30 rounded-2xl p-8 text-center">
               <h3 className="text-2xl font-bold text-white mb-3">
-                Want to plan your own night?
+                Ready to plan your next adventure?
               </h3>
               <p className="text-pink-200/70 text-sm mb-6">
                 AI-generated itineraries for any vibe, any time.
