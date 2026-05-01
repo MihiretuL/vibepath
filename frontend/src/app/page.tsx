@@ -6,7 +6,7 @@ import { FaChess } from "react-icons/fa"; // any fun icon
 import Link from "next/link";
 
 export default function Home() {
-  const [swappingIndex, setSwappingIndex] = useState(null);
+  const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
   const [itinerary, setItinerary] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
