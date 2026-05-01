@@ -89,7 +89,7 @@ export default function Home() {
         checkProStatus(session.user.id);
       } else {
         setIsPro(false);
-      }
+      }s
     });
 
     // Handle Stripe Redirects
