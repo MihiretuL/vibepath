@@ -6,10 +6,9 @@ import { useParams, useRouter } from "next/navigation";
 export default function SharedRoutePage() {
   const params = useParams();
   const router = useRouter();
-  const [itinerary, setItinerary] = useState<any>(null);
+
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-  
 
   useEffect(() => {
     const fetchRoute = async () => {
@@ -66,39 +65,6 @@ export default function SharedRoutePage() {
       </div>
     );
   }
-  const handleSwapSpot = async (index: number, currentSpot: any) => {
-    // 1. Turn on the loading spinner just for this one spot
-    setSwappingIndex(index);
-
-    try {
-      // 2. Ask your Python backend for a replacement using your env variables!
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/swap`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            vibe: itinerary.title || "custom vibe", // Use the title as context
-            spot_to_replace: currentSpot,
-            current_route: itinerary, // itinerary is already the full JSON!
-          }),
-        },
-      );
-
-      const newSpot = await response.json();
-
-      // 3. Update your React state to replace the old spot with the new one!
-      const updatedItinerary = { ...itinerary };
-      updatedItinerary.plan[index] = newSpot;
-      setItinerary(updatedItinerary);
-    } catch (error) {
-      console.error("Failed to swap spot:", error);
-      alert("The AI had a hiccup trying to find a new spot. Try again!");
-    } finally {
-      // 4. Turn off the loading spinner
-      setSwappingIndex(null);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-start p-4 sm:p-8 font-sans selection:bg-pink-500/30">
@@ -194,8 +160,6 @@ export default function SharedRoutePage() {
                       >
                         🚗 Request Uber
                       </button>
-
-                      
                     </div>
                   </div>
                 </div>

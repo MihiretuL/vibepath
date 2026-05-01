@@ -6,6 +6,7 @@ import { FaChess } from "react-icons/fa"; // any fun icon
 import Link from "next/link";
 
 export default function Home() {
+  const [swappingIndex, setSwappingIndex] = useState(null);
   const [mounted, setMounted] = useState(false);
 
   // --- AUTH STATE ---
@@ -15,7 +16,33 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMsg, setAuthMsg] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
+
+  const handleSwapSpot = async (index: number, currentSpot: any) => {
+    setSwappingIndex(index);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/swap`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            vibe: itinerary.title || "custom vibe",
+            spot_to_replace: currentSpot,
+            current_route: itinerary,
+          }),
+        },
+      );
+      const newSpot = await response.json();
+      const updatedItinerary = { ...itinerary };
+      updatedItinerary.plan[index] = newSpot;
+      setItinerary(updatedItinerary);
+    } catch (error) {
+      console.error("Failed to swap spot:", error);
+      alert("The AI had a hiccup trying to find a new spot. Try again!");
+    } finally {
+      setSwappingIndex(null);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
