@@ -38,6 +38,16 @@ export default function Home() {
       const updatedItinerary = { ...itinerary };
       updatedItinerary.plan[index] = newSpot;
       setItinerary(updatedItinerary);
+      if (itinerary.id) {
+        const { error } = await supabase
+          .from("itineraries")
+          .update({ full_json: updatedItinerary.plan })
+          .eq("id", itinerary.id);
+
+        if (error) {
+          console.error("Failed to save swap to database:", error);
+        }
+      }
     } catch (error) {
       console.error("Failed to swap spot:", error);
       alert("The AI had a hiccup trying to find a new spot. Try again!");
