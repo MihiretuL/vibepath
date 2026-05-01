@@ -6,8 +6,9 @@ import { FaChess } from "react-icons/fa"; // any fun icon
 import Link from "next/link";
 
 export default function Home() {
-  const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
   const [itinerary, setItinerary] = useState<any>(null);
+  const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
+
   const [mounted, setMounted] = useState(false);
 
   // --- AUTH STATE ---
@@ -89,7 +90,8 @@ export default function Home() {
         checkProStatus(session.user.id);
       } else {
         setIsPro(false);
-      }s
+      }
+      s;
     });
 
     // Handle Stripe Redirects
