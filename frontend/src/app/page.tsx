@@ -7,6 +7,7 @@ import Link from "next/link";
 
 export default function Home() {
   const [swappingIndex, setSwappingIndex] = useState(null);
+  const [itinerary, setItinerary] = useState<any>(null);
   const [mounted, setMounted] = useState(false);
 
   // --- AUTH STATE ---
@@ -116,7 +117,7 @@ export default function Home() {
   const [mood, setMood] = useState("");
   const [vibe, setVibe] = useState("");
   const [loading, setLoading] = useState(false);
-  const [itinerary, setItinerary] = useState<any>(null);
+
   const [errorMsg, setErrorMsg] = useState("");
   const [routeId, setRouteId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
