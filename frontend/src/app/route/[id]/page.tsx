@@ -9,7 +9,7 @@ export default function SharedRoutePage() {
 
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
-
+  const [itinerary, setItinerary] = useState<any>(null);
   useEffect(() => {
     const fetchRoute = async () => {
       try {
