@@ -15,6 +15,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMsg, setAuthMsg] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [swappingIndex, setSwappingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -714,6 +715,18 @@ export default function Home() {
                       className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 shadow-md"
                     >
                       🚗 Request Uber
+                    </button>
+                    {/* 👇 THE BRAND NEW SWAP BUTTON 👇 */}
+                    <button
+                      onClick={() => handleSwapSpot(index, step)}
+                      disabled={swappingIndex === index}
+                      className="bg-neutral-900 border border-neutral-700 text-neutral-300 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-800 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {swappingIndex === index ? (
+                        <span className="animate-spin text-pink-500">⏳</span>
+                      ) : (
+                        "🔄 Swap this spot"
+                      )}
                     </button>
                   </div>
                 </div>
