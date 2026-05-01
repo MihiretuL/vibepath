@@ -91,7 +91,6 @@ export default function Home() {
       } else {
         setIsPro(false);
       }
-      s;
     });
 
     // Handle Stripe Redirects
