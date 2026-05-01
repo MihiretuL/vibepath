@@ -8,7 +8,7 @@ from datetime import datetime
 from google import genai
 from google.genai import types
 
-load_dotenv()f
+load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 weather_key = os.getenv("WEATHER_API_KEY")
 
