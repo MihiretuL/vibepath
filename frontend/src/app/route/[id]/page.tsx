@@ -14,7 +14,7 @@ export default function SharedRoutePage() {
     const fetchRoute = async () => {
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/route/${params.id}`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/route/${params.id}?timestamp=${Date.now()}`,
           { cache: "no-store" },
         );
         const data = await response.json();
