@@ -41,7 +41,7 @@ export default function Home() {
       if (itinerary.id) {
         const { error } = await supabase
           .from("itineraries")
-          .update({ full_json: updatedItinerary.plan })
+          .update({ full_json: updatedItinerary })
           .eq("id", itinerary.id);
 
         if (error) {
