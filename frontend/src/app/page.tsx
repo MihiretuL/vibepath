@@ -50,7 +50,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Failed to swap spot:", error);
-      
+
       alert("The AI had a hiccup trying to find a new spot. Try again!");
     } finally {
       setSwappingIndex(null);
@@ -775,6 +775,44 @@ export default function Home() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+export function DynamicLoader({ isSwapping = false }) {
+  const [messageIndex, setMessageIndex] = useState(0);
+
+  const generateMessages = [
+    "Consulting local Chicago experts...",
+    "Checking live Ticketmaster events...",
+    "Mapping the best transit routes...",
+    "Vibe check in progress...",
+    "Finalizing your itinerary...",
+  ];
+
+  const swapMessages = [
+    "Searching the neighborhood...",
+    "Finding a better vibe...",
+    "Dodging the tourist traps...",
+    "Securing a new spot...",
+  ];
+
+  const activeMessages = isSwapping ? swapMessages : generateMessages;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setMessageIndex((prev) => (prev + 1) % activeMessages.length);
+    }, 2000); // Changes message every 2 seconds
+
+    return () => clearInterval(interval);
+  }, [activeMessages.length]);
+
+  return (
+    <div className="flex flex-col items-center justify-center space-y-4 p-8">
+      <div className="w-10 h-10 border-4 border-pink-500/30 border-t-pink-500 rounded-full animate-spin"></div>
+      <p className="text-pink-400 font-bold tracking-widest uppercase text-sm animate-pulse text-center">
+        {activeMessages[messageIndex]}
+      </p>
     </div>
   );
 }
