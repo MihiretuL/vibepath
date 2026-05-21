@@ -645,8 +645,15 @@ export default function Home() {
         </div>
       </div>
       {/* RESULTS AREA */}
-      {/* 🚨 ITINERARY DISPLAY */}
-      {itinerary && itinerary.plan && (
+
+      {/* 🚀 THE BRAND NEW DYNAMIC LOADER 🚀 */}
+      {loading && (
+        <div className="w-full mt-8 mb-24 flex justify-center">
+          <DynamicLoader />
+        </div>
+      )}
+
+      {itinerary && itinerary.plan && !loading && (
         <div className="w-full animate-fade-in flex flex-col items-center pb-24">
           {/* Top Section: Title, Pills, Weather */}
           {/* 🚨 ALIGNMENT FIX: Added max-w-2xl and mx-auto to the main wrapper */}
