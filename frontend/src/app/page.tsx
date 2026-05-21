@@ -50,6 +50,7 @@ export default function Home() {
       }
     } catch (error) {
       console.error("Failed to swap spot:", error);
+      
       alert("The AI had a hiccup trying to find a new spot. Try again!");
     } finally {
       setSwappingIndex(null);
