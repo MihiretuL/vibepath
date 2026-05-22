@@ -34,6 +34,7 @@ export default function VaultPage() {
         .from("itineraries")
         .select("id, title, vibe, created_at")
         .eq("user_id", user.id)
+        .eq("is_saved_to_vault", true)
         .order("created_at", { ascending: false }); // Newest first!
 
       if (error) {

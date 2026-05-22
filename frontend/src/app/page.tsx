@@ -18,6 +18,7 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMsg, setAuthMsg] = useState("");
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const handleSwapSpot = async (index: number, currentSpot: any) => {
     setSwappingIndex(index);
@@ -226,9 +227,11 @@ export default function Home() {
   // --- GENERATE ROUTE ---
   const generateItinerary = async () => {
     if (!mood && !vibe) return;
+
     setLoading(true);
     setErrorMsg("");
     setItinerary(null);
+    setIsSaved(false);
 
     // 🧠 Your custom location formatting!
     let formattedLocation = location.trim() || "Chicago, IL";
@@ -314,6 +317,21 @@ export default function Home() {
     );
 
   if (!mounted) return <div className="min-h-screen bg-[#0a0a0a]"></div>;
+  const handleSaveToVault = async () => {
+    if (!itinerary?.id) return;
+
+    const { error } = await supabase
+      .from("itineraries")
+      .update({ is_saved_to_vault: true })
+      .eq("id", itinerary.id);
+
+    if (error) {
+      console.error("Failed to save to vault:", error);
+      alert("Could not save to Vault. Try again!");
+    } else {
+      setIsSaved(true);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white flex flex-col items-center justify-start p-4 sm:p-8 font-sans selection:bg-pink-500/30 relative">
@@ -683,21 +701,34 @@ export default function Home() {
             </div>
 
             {itinerary.id && (
-              <div className="mt-6">
+              <div className="mt-6 flex flex-wrap justify-center gap-4">
+                {/* 🔗 The Existing Share Button */}
                 <button
                   onClick={() => {
-                    // 1. Copy the link quietly in the background
                     navigator.clipboard.writeText(
                       `https://pathzu.com/route/${itinerary.id}`,
                     );
-
-                    // 2. Show the clean, user-friendly popup!
                     alert("Link copied! Text it to your friends.");
                   }}
-                  className="px-6 py-3 bg-white hover:bg-neutral-200 text-black rounded-full text-sm font-bold transition-all shadow-[0_5px_20px_rgba(255,255,255,0.1)] flex items-center gap-2 mx-auto active:scale-95"
+                  className="px-6 py-3 bg-white hover:bg-neutral-200 text-black rounded-full text-sm font-bold transition-all shadow-[0_5px_20px_rgba(255,255,255,0.1)] flex items-center gap-2 active:scale-95"
                 >
                   🔗 Share this Path
                 </button>
+
+                {/* ⭐️ The NEW Save Button */}
+                {user && ( // Only show to logged-in users!
+                  <button
+                    onClick={handleSaveToVault}
+                    disabled={isSaved}
+                    className={`px-6 py-3 rounded-full text-sm font-bold transition-all shadow-lg flex items-center gap-2 active:scale-95 ${
+                      isSaved
+                        ? "bg-emerald-900/40 text-emerald-400 border border-emerald-500/50 cursor-default"
+                        : "bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-700"
+                    }`}
+                  >
+                    {isSaved ? "✅ Saved to Vault" : "⭐️ Save to Vault"}
+                  </button>
+                )}
               </div>
             )}
           </div>
