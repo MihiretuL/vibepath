@@ -262,35 +262,26 @@ async def get_frontend_events(city: str = "Chicago"):
         return {"events": []}
 
 # 🚨 The Webhook Engine (Listens for Stripe's Secret Ping)
-@app.post("/api/webhook")
+# 1. Update the door so Stripe can find it!
+@app.post("/api/webhook/stripe")
 async def stripe_webhook(request: Request):
-    # 1. Grab the raw data and the security signature from Stripe
     payload = await request.body()
     sig_header = request.headers.get("stripe-signature")
     webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
 
     try:
-        # 2. Verify the message is actually from Stripe and not a hacker
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, webhook_secret
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail="Invalid payload")
-    except stripe.error.SignatureVerificationError as e:
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
+    except Exception as e:
+        return HTTPException(status_code=400, detail=str(e))
 
-    # 3. Listen specifically for the "Payment Successful" event
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
-        
-        # 4. Grab the user_id we secretly attached to the receipt!
         user_id = session.get('client_reference_id')
 
         if user_id:
             print(f"🎉 MONEY IN THE BANK! Upgrading user {user_id} to PRO...")
-            
             try:
-                # 5. Flip the switch in the Supabase database!
+                # 2. Using your exact table name: 'profiles'
                 supabase.table("profiles").upsert({
                     "id": user_id,
                     "is_pro": True
@@ -298,6 +289,8 @@ async def stripe_webhook(request: Request):
                 print("✅ User successfully upgraded in the database!")
             except Exception as e:
                 print(f"❌ Failed to update Supabase: {e}")
+
+    return {"status": "success"}
 
     # Always return a 200 OK so Stripe knows we received the message
     return {"status": "success"}
