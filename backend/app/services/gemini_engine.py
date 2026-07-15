@@ -263,7 +263,7 @@ def swap_spot_with_ai(req) -> dict:
                     response_mime_type="application/json",
                 )
             )
-            try:
+        try:
             response = client.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=system_instruction,
