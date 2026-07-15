@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import time # 🚨 NEW: Needed for the retry loop delay
+import urllib.parse 
 from dotenv import load_dotenv
 from datetime import datetime
 
@@ -25,6 +26,32 @@ def get_live_weather():
         return f"{temp}°F and {condition}"
     except Exception:
         return "Weather unavailable."
+def get_google_image_url(place_name):
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if not api_key:
+        print("⚠️ Missing GOOGLE_PLACES_API_KEY")
+        return None
+
+    # 1. Search Google for the specific place in Chicago
+    query = urllib.parse.quote(f"{place_name} Chicago")
+    search_url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={query}&key={api_key}"
+
+    try:
+        response = requests.get(search_url, timeout=4).json()
+        results = response.get("results", [])
+
+        # 2. If Google found the place AND it has photos...
+        if results and "photos" in results[0]:
+            photo_ref = results[0]["photos"][0]["photo_reference"]
+            
+            # 3. Construct the exact URL for the frontend to render
+            image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_ref}&key={api_key}"
+            return image_url
+            
+        return None
+    except Exception as e:
+        print(f"⚠️ Google Places API failed for {place_name}: {e}")
+        return None
 
 def get_live_events(location_string: str) -> str:
     """Silently fetches live events happening nearby."""
@@ -158,7 +185,19 @@ def generate_vibe_itinerary(req) -> str:
                     response_mime_type="application/json",
                 )
             )
-            return response.text
+            raw_text = response.text
+            try:
+                itinerary_data = json.loads(raw_text)
+                if "plan" in itinerary_data:
+                    for step in itinerary_data["plan"]:
+                        place_name = step.get("place")
+                        if place_name:
+                            print(f"📸 Fetching photo for: {place_name}...")
+                            step["image_url"] = get_google_image_url(place_name)
+                return json.dumps(itinerary_data)
+            except Exception as parse_error:
+                print(f"⚠️ JSON parsing/image fetch failed: {parse_error}")
+                return raw_text # Fallback to original text if something catches
             
         except Exception as e:
             error_message = str(e).lower()
@@ -224,7 +263,23 @@ def swap_spot_with_ai(req) -> dict:
                     response_mime_type="application/json",
                 )
             )
-            return json.loads(response.text)
+            try:
+            response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=system_instruction,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                )
+            )
+            
+            # 🚨 ENRICH THE SWAPPED SPOT WITH A PHOTO 🚨
+            new_spot = json.loads(response.text)
+            place_name = new_spot.get("place")
+            if place_name:
+                print(f"📸 Fetching photo for swapped spot: {place_name}...")
+                new_spot["image_url"] = get_google_image_url(place_name)
+                
+            return new_spot
             
         except Exception as e:
             error_message = str(e).lower()
