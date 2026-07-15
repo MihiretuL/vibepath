@@ -38,6 +38,8 @@ def get_google_image_url(place_name):
 
     try:
         response = requests.get(search_url, timeout=4).json()
+        # 🚨 ADD THIS LINE RIGHT HERE to expose Google's secret message:
+        print(f"🔍 Google Response for {place_name}: {response.get('status')} - {response.get('error_message', 'No error msg')}")
         results = response.get("results", [])
 
         # 2. If Google found the place AND it has photos...
