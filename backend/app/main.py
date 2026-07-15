@@ -68,17 +68,29 @@ async def generate_route(req: VibeRequest):
 
     try:
         # 2. 🗄️ THE VAULT: Check their profile in Supabase
-        profile_res = supabase.table("profiles").select("is_pro, routes_generated").eq("id", req.user_id).execute()
+
+
+        # 2. 🗄️ THE VAULT: Check their profile in Supabase
+        profile_res = supabase.table("profiles").select("is_pro, routes_generated, tourist_pass_expires_at").eq("id", req.user_id).execute()
         
         is_pro = False
         routes_generated = 0
+        has_active_tourist_pass = False
 
         if len(profile_res.data) > 0:
             user_profile = profile_res.data[0]
             is_pro = user_profile.get("is_pro") or False
             routes_generated = user_profile.get("routes_generated") or 0
+            
+            # 🚨 NEW: Check if they have an active tourist pass!
+            expires_at_str = user_profile.get("tourist_pass_expires_at")
+            if expires_at_str:
+                # Convert the database string to a real Python datetime object
+                expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+                now = datetime.now(datetime.timezone.utc)
+                if expires_at > now:
+                    has_active_tourist_pass = True
         else:
-            # 🚨 THE FIX: If they don't have a profile row yet, create one right now!
             print(f"🛠️ Creating missing profile row for user {req.user_id}")
             supabase.table("profiles").insert({
                 "id": req.user_id, 
@@ -86,13 +98,15 @@ async def generate_route(req: VibeRequest):
                 "routes_generated": 0
             }).execute()
 
-        # 3. 💸 THE PAYWALL: Block them if they hit the limit!
-        if not is_pro and routes_generated >= 2:
+        # 3. 💸 THE PAYWALL: Block them if they have no pro, no pass, and hit the limit!
+        if not is_pro and not has_active_tourist_pass and routes_generated >= 2:
             print(f"🔒 PAYWALL HIT: User {req.user_id} is out of free routes.")
             return {"reply": json.dumps({
                 "error": "PAYWALL_HIT", 
-                "message": "You've reached your limit of 2 free routes! Please upgrade to Pro to unlock unlimited generations."
+                "message": "You've reached your limit! Upgrade to a Local Pass or a 10-Day Tourist Pass to keep exploring."
             }), "route_id": None}
+
+
         
         # 4. 🔢 THE COUNTER: Add +1 if they are on the free tier
         if not is_pro:
@@ -262,7 +276,9 @@ async def get_frontend_events(city: str = "Chicago"):
         return {"events": []}
 
 # 🚨 The Webhook Engine (Listens for Stripe's Secret Ping)
+
 # 1. Update the door so Stripe can find it!
+# 🚨 The Webhook Engine (Listens for Stripe's Secret Ping)
 @app.post("/api/webhook/stripe")
 async def stripe_webhook(request: Request):
     payload = await request.body()
@@ -277,23 +293,39 @@ async def stripe_webhook(request: Request):
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
         user_id = session.get('client_reference_id')
+        amount_paid = session.get('amount_total') # This tells us what they bought!
 
         if user_id:
-            print(f"🎉 MONEY IN THE BANK! Upgrading user {user_id} to PRO...")
             try:
-                # 2. Using your exact table name: 'profiles'
-                supabase.table("profiles").upsert({
-                    "id": user_id,
-                    "is_pro": True
-                }).execute()
-                print("✅ User successfully upgraded in the database!")
+                # Did they buy the $9.99 Tourist Pass?
+                if amount_paid == 999:
+                    print(f"✈️ TOURIST PASS SOLD! Granting 10 days to {user_id}...")
+                    
+                    from datetime import datetime, timedelta, timezone
+                    now = datetime.now(timezone.utc)
+                    expiration_date = now + timedelta(days=10)
+                    
+                    supabase.table("profiles").upsert({
+                        "id": user_id,
+                        "tourist_pass_expires_at": expiration_date.isoformat()
+                    }).execute()
+                    
+                # Otherwise, they bought the $4.99 Monthly Pro Pass!
+                else:
+                    print(f"🎉 PRO MONTHLY SOLD! Upgrading user {user_id}...")
+                    supabase.table("profiles").upsert({
+                        "id": user_id,
+                        "is_pro": True
+                    }).execute()
+                    
+                print("✅ Database successfully updated via Webhook!")
             except Exception as e:
                 print(f"❌ Failed to update Supabase: {e}")
 
     return {"status": "success"}
 
     # Always return a 200 OK so Stripe knows we received the message
-    return {"status": "success"}
+   
 # 🚨 The Swapping Endpoint
 @app.post("/api/swap")
 async def swap_route_spot(req: SwapRequest):

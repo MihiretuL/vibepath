@@ -344,18 +344,34 @@ export default function Home() {
             </span>
 
             {/* 🚨 THE UPGRADED PAYWALL LOGIC 🚨 */}
+
+            {/* 🚨 THE UPGRADED PAYWALL LOGIC 🚨 */}
             {isPro ? (
               <span className="text-xs font-black px-5 py-2 bg-gradient-to-r from-amber-400 to-yellow-300 text-black rounded-full shadow-[0_0_20px_rgba(251,191,36,0.4)] tracking-wide cursor-default">
                 👑 PRO MEMBER
               </span>
             ) : (
-              <button
-                onClick={handleGoPro}
-                disabled={checkoutLoading}
-                className="text-xs font-bold px-5 py-2 bg-gradient-to-r from-neutral-800 to-neutral-700 hover:from-amber-400 hover:to-orange-500 text-white hover:text-black border border-neutral-600 hover:border-transparent rounded-full transition-all duration-300 disabled:opacity-50"
-              >
-                {checkoutLoading ? "Loading..." : "✨ Go Pro"}
-              </button>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                {/* Monthly Subscription Button */}
+                <button
+                  onClick={() =>
+                    (window.location.href = `https://buy.stripe.com/00w6oIdoO9bD0Wmbzw4Ni01?client_reference_id=${user?.id}`)
+                  }
+                  className="text-xs font-bold px-4 py-2 bg-transparent hover:bg-neutral-800 text-white border border-neutral-600 rounded-full transition-all duration-300"
+                >
+                  Local Pass ($4.99/mo)
+                </button>
+
+                {/* 10-Day Tourist Pass Button */}
+                <button
+                  onClick={() =>
+                    (window.location.href = `https://buy.stripe.com/4gMcN63Oe1JbgVk0US4Ni02?client_reference_id=${user?.id}`)
+                  }
+                  className="text-xs font-black px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-black rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                >
+                  ✈️ 10-Day Tourist Pass ($9.99)
+                </button>
+              </div>
             )}
 
             {/* 👇 THE NEW VAULT LINK 👇 */}
