@@ -4,6 +4,7 @@ import requests
 from datetime import datetime
 import json
 import stripe
+import io
 from fastapi import FastAPI, Request, HTTPException 
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -57,7 +58,27 @@ class CheckoutRequest(BaseModel):
     user_id: str
 
 # --- ENDPOINTS ---
-
+@app.get("/api/photo")
+def proxy_place_photo(reference: str):
+    """Securely fetches a Google photo using the hidden server key and streams it to the UI."""
+    api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=500, detail="API key configuration missing")
+        
+    google_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={reference}&key={api_key}"
+    
+    try:
+        # Fetch the image data securely from Google server-side
+        response = requests.get(google_url, stream=True, timeout=5)
+        
+        if response.status_code != 200:
+            raise HTTPException(status_code=response.status_code, detail="Failed to fetch image from Google")
+            
+        # Stream the raw image data directly back to the browser
+        return StreamingResponse(io.BytesIO(response.content), media_type=response.headers.get("content-type", "image/jpeg"))
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 @app.post("/api/route")
 async def generate_route(req: VibeRequest):
     print("🚨 THE FRONTEND KNOCKED ON THE DOOR!")

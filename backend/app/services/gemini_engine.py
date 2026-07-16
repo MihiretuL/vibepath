@@ -38,7 +38,6 @@ def get_google_image_url(place_name):
 
     try:
         response = requests.get(search_url, timeout=4).json()
-        # 🚨 ADD THIS LINE RIGHT HERE to expose Google's secret message:
         print(f"🔍 Google Response for {place_name}: {response.get('status')} - {response.get('error_message', 'No error msg')}")
         results = response.get("results", [])
 
@@ -46,13 +45,16 @@ def get_google_image_url(place_name):
         if results and "photos" in results[0]:
             photo_ref = results[0]["photos"][0]["photo_reference"]
             
-            # 3. Construct the exact URL for the frontend to render
-            image_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={photo_ref}&key={api_key}"
+            # 🚨 CHANGE THIS to your actual live Render URL
+            backend_url = "https://pathzu-backend.onrender.com" 
+            
+            # 3. 🛡️ Bulletproof Fix: Point the frontend to your secure proxy instead of exposing the raw key!
+            image_url = f"{backend_url}/api/photo?reference={photo_ref}"
             return image_url
             
         return None
     except Exception as e:
-        print(f"⚠️ Google Places API failed for {place_name}: {e}")
+        print(f"⚠️ Google Places API failed for {place_name}: {str(e)}")
         return None
 
 def get_live_events(location_string: str) -> str:
