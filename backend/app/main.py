@@ -6,6 +6,7 @@ import json
 import stripe
 import io
 from fastapi import FastAPI, Request, HTTPException 
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -60,25 +61,30 @@ class CheckoutRequest(BaseModel):
 # --- ENDPOINTS ---
 @app.get("/api/photo")
 def proxy_place_photo(reference: str):
-    """Securely fetches a Google photo using the hidden server key and streams it to the UI."""
+    """Securely asks Google for the final image URL and redirects the browser."""
     api_key = os.getenv("GOOGLE_PLACES_API_KEY")
     if not api_key:
         raise HTTPException(status_code=500, detail="API key configuration missing")
         
+    # The initial URL with the secret key
     google_url = f"https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference={reference}&key={api_key}"
     
     try:
-        # Fetch the image data securely from Google server-side
-        response = requests.get(google_url, stream=True, timeout=5)
+        # allow_redirects=False lets us catch the safe URL without downloading the heavy image!
+        response = requests.get(google_url, allow_redirects=False, timeout=5)
         
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail="Failed to fetch image from Google")
+        # Google responds with a 302 Found and the actual safe image URL in the 'Location' header
+        if response.status_code in (301, 302) and "Location" in response.headers:
+            safe_url = response.headers["Location"]
+            return RedirectResponse(url=safe_url)
+        else:
+            print(f"❌ Google Proxy Failed: Status {response.status_code}")
+            raise HTTPException(status_code=500, detail="Failed to get redirect URL from Google")
             
-        # Stream the raw image data directly back to the browser
-        return StreamingResponse(io.BytesIO(response.content), media_type=response.headers.get("content-type", "image/jpeg"))
-        
     except Exception as e:
+        print(f"❌ Proxy Error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/route")
 async def generate_route(req: VibeRequest):
     print("🚨 THE FRONTEND KNOCKED ON THE DOOR!")
