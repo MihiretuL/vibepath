@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function SharedRoutePage() {
   const params = useParams();
@@ -121,6 +122,18 @@ export default function SharedRoutePage() {
                     <p className="text-pink-500 text-xs font-bold mb-3 tracking-wide">
                       📍 {step.place}
                     </p>
+                    {step.image_url && (
+                      <div className="w-full mt-2 mb-4 relative">
+                        <Image
+                          src={step.image_url}
+                          alt={step.place}
+                          width={600}
+                          height={400}
+                          unoptimized={true}
+                          className="w-full h-48 sm:h-56 object-cover rounded-xl border border-neutral-800 shadow-md"
+                        />
+                      </div>
+                    )}
 
                     {/* Price Tag */}
                     {step.cost_estimate && (

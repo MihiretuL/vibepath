@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
@@ -32,7 +32,7 @@ export default function VaultPage() {
       // 2. Fetch all itineraries that belong ONLY to this user
       const { data, error } = await supabase
         .from("itineraries")
-        .select("id, title, vibe, created_at")
+        .select("id, title, vibe, created_at, full_json")
         .eq("user_id", user.id)
         .eq("is_saved_to_vault", true)
         .order("created_at", { ascending: false }); // Newest first!
@@ -94,24 +94,54 @@ export default function VaultPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {itineraries.map((route) => (
-              <Link href={`/route/${route.id}`} key={route.id}>
-                <div className="p-6 border border-neutral-800 rounded-2xl bg-neutral-900 hover:border-indigo-500 hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all group h-full flex flex-col cursor-pointer">
-                  <h2 className="text-xl font-bold mb-2 group-hover:text-indigo-400 transition-colors">
-                    {route.title || "My Pathzu Route"}
-                  </h2>
+            {itineraries.map((route) => {
+              // 🚨 EXTRAC TING THE THUMBNAIL PHOTO
+              // We grab the first step's image_url if it exists.
+              const thumbnailPhoto = route.full_json?.plan?.[0]?.image_url;
 
-                  <div className="mt-auto pt-4 flex items-center justify-between text-xs text-neutral-500">
-                    <span className="px-3 py-1 bg-neutral-800 rounded-full truncate max-w-[150px]">
-                      {route.vibe || "Custom Vibe"}
-                    </span>
-                    <span>
-                      {new Date(route.created_at).toLocaleDateString()}
-                    </span>
+              return (
+                <Link href={`/route/${route.id}`} key={route.id}>
+                  <div className="border border-neutral-800 rounded-2xl bg-neutral-900 hover:border-indigo-500 hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all group h-full flex flex-col cursor-pointer overflow-hidden">
+                    {/* 🚨 THE NEW THUMBNAIL IMAGE BLOCK */}
+                    {thumbnailPhoto ? (
+                      <div className="w-full h-48 relative overflow-hidden">
+                        <Image
+                          src={thumbnailPhoto}
+                          alt={`Thumbnail for ${route.title}`}
+                          width={400} // Reserves layout space
+                          height={200} // Reserves layout space
+                          unoptimized={true} // Mandatory for external Google proxy links
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        {/* Gradient overlay for better text readability */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 to-transparent"></div>
+                      </div>
+                    ) : (
+                      // Fallback if no photo found
+                      <div className="w-full h-48 bg-neutral-800 flex items-center justify-center text-neutral-600">
+                        No Photo
+                      </div>
+                    )}
+
+                    {/* Card Content (Adjusted padding to p-5 for better fit) */}
+                    <div className="p-5 flex-grow flex flex-col">
+                      <h2 className="text-lg font-bold mb-3 group-hover:text-indigo-400 transition-colors line-clamp-2">
+                        {route.title || "My Pathzu Route"}
+                      </h2>
+
+                      <div className="mt-auto pt-3 flex items-center justify-between text-xs text-neutral-500 border-t border-neutral-800">
+                        <span className="px-3 py-1 bg-neutral-800 rounded-full truncate max-w-[150px]">
+                          {route.vibe || "Custom Vibe"}
+                        </span>
+                        <span>
+                          {new Date(route.created_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
