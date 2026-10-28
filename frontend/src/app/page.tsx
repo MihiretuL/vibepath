@@ -4,6 +4,78 @@ import { supabase } from "../../lib/supabase";
 import { GiMagicHat } from "react-icons/gi"; // magic-related icon
 import { FaChess } from "react-icons/fa"; // any fun icon
 import Link from "next/link";
+import {
+  Activity,
+  Archive,
+  Brain,
+  Building2,
+  Camera,
+  Check,
+  ChevronRight,
+  Cloud,
+  Coffee,
+  Crown,
+  Dog,
+  Flame,
+  Footprints,
+  Heart,
+  Loader2,
+  Lock,
+  MapPin,
+  MessageCircle,
+  PartyPopper,
+  Plane,
+  Sparkles,
+  Star,
+  Ticket,
+  TrainFront,
+  TriangleAlert,
+  User,
+  Users,
+  Utensils,
+  Car,
+  Wine,
+  type LucideIcon,
+} from "lucide-react";
+import { DEFAULT_CITY, QUICK_CITIES, getCity } from "../../lib/pathzu";
+import {
+  GLASS_CARD,
+  ShareActions,
+  StartRouteButton,
+  StepCard,
+} from "../components/RouteParts";
+
+const LIVE_EVENT_MOOD = "\u{1F3AB} Live Event";
+
+// `value` is what we send to the backend/Gemini (unchanged); `label` is what the user sees.
+type PillOption = { value: string; label: string; Icon: LucideIcon };
+
+const TRANSIT_OPTIONS: PillOption[] = [
+  { value: "\u{1F6B6} Walk", label: "Walk", Icon: Footprints },
+  { value: "\u{1F686} CTA", label: "CTA", Icon: TrainFront },
+  { value: "\u{1F697} Drive/Uber", label: "Drive/Uber", Icon: Car },
+];
+
+const PARTY_OPTIONS: PillOption[] = [
+  { value: "Solo", label: "Solo", Icon: User },
+  { value: "Date", label: "Date", Icon: Heart },
+  { value: "Group", label: "Group", Icon: Users },
+];
+
+const MOOD_OPTIONS: PillOption[] = [
+  { value: "\u{1F6B6} Walking Route", label: "Walking Route", Icon: Footprints },
+  { value: "\u{1F377} Chill Date", label: "Chill Date", Icon: Wine },
+  { value: "\u{1F9D8} Reset Mind", label: "Reset Mind", Icon: Brain },
+  { value: "\u2615 Coffee Run", label: "Coffee Run", Icon: Coffee },
+  { value: "\u{1F415} Walk Dog", label: "Walk Dog", Icon: Dog },
+  { value: "\u{1F306} Explore City", label: "Explore City", Icon: Building2 },
+  { value: "\u{1F5E3}\uFE0F Deep Talks", label: "Deep Talks", Icon: MessageCircle },
+  { value: "\u{1F3C3} Running Route", label: "Running Route", Icon: Activity },
+  { value: "\u{1FAA9} Turn Up", label: "Turn Up", Icon: PartyPopper },
+  { value: "\u{1F4F8} Aesthetic", label: "Aesthetic", Icon: Camera },
+  { value: "\u{1F354} Food Coma", label: "Food Coma", Icon: Utensils },
+  { value: LIVE_EVENT_MOOD, label: "Live Event", Icon: Ticket },
+];
 
 export default function Home() {
   const [itinerary, setItinerary] = useState<any>(null);
@@ -36,7 +108,7 @@ export default function Home() {
         },
       );
       const newSpot = await response.json();
-      const updatedItinerary = { ...itinerary };
+      const updatedItinerary = { ...itinerary, plan: [...itinerary.plan] };
       updatedItinerary.plan[index] = newSpot;
       setItinerary(updatedItinerary);
       if (itinerary.id) {
@@ -60,20 +132,6 @@ export default function Home() {
 
   useEffect(() => {
     setMounted(true);
-    // Fetch Live Chicago Events
-    const fetchEvents = async () => {
-      try {
-        // 👇 CHANGED THIS LINE 👇
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/events`,
-        );
-        const data = await res.json();
-        if (data.events) setLiveEvents(data.events);
-      } catch (err) {
-        console.error("Failed to fetch events", err);
-      }
-    };
-    fetchEvents();
 
     // Helper function to check the database
     const checkProStatus = async (userId: string) => {
@@ -108,7 +166,7 @@ export default function Home() {
     // Handle Stripe Redirects
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("payment") === "success") {
-      alert("🎉 Payment Successful! Welcome to Pathzu Pro!");
+      alert("Payment Successful! Welcome to Pathzu Pro!");
       window.history.replaceState(null, "", window.location.pathname);
       setIsPro(true); // Instantly upgrade them in the UI!
     }
@@ -123,7 +181,7 @@ export default function Home() {
   const [location, setLocation] = useState("");
   const [findingGPS, setFindingGPS] = useState(false);
   const [timing, setTiming] = useState("Right Now");
-  const [transit, setTransit] = useState("🚶 Walk");
+  const [transit, setTransit] = useState(TRANSIT_OPTIONS[0].value);
   const [distance, setDistance] = useState("Neighborhood");
   const [party, setParty] = useState("Solo");
   const [budget, setBudget] = useState("$$");
@@ -132,10 +190,31 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   const [errorMsg, setErrorMsg] = useState("");
-  const [routeId, setRouteId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [isPaywall, setIsPaywall] = useState(false);
+  const [city, setCity] = useState(DEFAULT_CITY);
   const [liveEvents, setLiveEvents] = useState<any[]>([]);
-  const [fetchingEvents, setFetchingEvents] = useState(false);
+
+  // Fetch live Ticketmaster events for the selected city
+  useEffect(() => {
+    let cancelled = false;
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/events?city=${encodeURIComponent(city.trim() || DEFAULT_CITY)}`,
+        );
+        const data = await res.json();
+        if (!cancelled) setLiveEvents(data.events || []);
+      } catch (err) {
+        console.error("Failed to fetch events", err);
+      }
+    };
+    // Debounce so typing a custom city doesn't fire a request per keystroke
+    const timer = setTimeout(fetchEvents, 400);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [city]);
 
   // 🚨 NEW: Loading state for the Stripe button
   const [checkoutLoading, setCheckoutLoading] = useState(false);
@@ -189,9 +268,9 @@ export default function Home() {
     setAuthLoading(true);
     setAuthMsg("");
     const { error } = await supabase.auth.signInWithOtp({ email });
-    if (error) setAuthMsg(`❌ ${error.message}`);
+    if (error) setAuthMsg(error.message);
     else {
-      setAuthMsg("✨ Magic link sent! Check your email.");
+      setAuthMsg("Magic link sent! Check your email.");
       setEmail("");
     }
     setAuthLoading(false);
@@ -230,20 +309,24 @@ export default function Home() {
 
     setLoading(true);
     setErrorMsg("");
+    setIsPaywall(false);
     setItinerary(null);
     setIsSaved(false);
 
-    // 🧠 Your custom location formatting!
-    let formattedLocation = location.trim() || "Chicago, IL";
+    // 🧠 Your custom location formatting, now relative to the selected city
+    const selectedCity = city.trim() || DEFAULT_CITY;
+    const cityName = selectedCity.split(",")[0].trim().toLowerCase();
+    let formattedLocation = location.trim() || selectedCity;
     if (
       !formattedLocation.includes(",") &&
-      !formattedLocation.toLowerCase().includes("chicago")
+      !formattedLocation.toLowerCase().includes(cityName)
     ) {
-      formattedLocation = `${formattedLocation}, Chicago, IL`;
+      formattedLocation = `${formattedLocation}, ${selectedCity}`;
     }
 
     const payload = {
       location: formattedLocation, // 🚨 Using your upgraded location
+      city: selectedCity,
       timing,
       transit,
       distance,
@@ -270,9 +353,10 @@ export default function Home() {
       const parsedData = JSON.parse(data.reply);
       if (parsedData.error) {
         if (parsedData.error === "PAYWALL_HIT") {
-          setErrorMsg("🔒 " + parsedData.message);
+          setIsPaywall(true);
+          setErrorMsg(parsedData.message);
         } else {
-          setErrorMsg(`🚨 ${parsedData.error}`);
+          setErrorMsg(parsedData.error);
         }
       }
 
@@ -289,6 +373,7 @@ export default function Home() {
           console.error("❌ No ID found in backend response:", data);
         }
 
+        parsedData.city = parsedData.city || selectedCity;
         setItinerary(parsedData);
       }
     } catch (error) {
@@ -297,24 +382,6 @@ export default function Home() {
       setLoading(false);
     }
   };
-
-  const handleShare = () => {
-    if (!routeId) return;
-    navigator.clipboard.writeText(`${window.location.origin}/route/${routeId}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
-
-  const openMaps = (placeName: string) =>
-    window.open(
-      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName + ", " + (location || "Chicago, IL"))}`,
-      "_blank",
-    );
-  const openUber = (placeName: string) =>
-    window.open(
-      `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(placeName + ", " + (location || "Chicago, IL"))}`,
-      "_blank",
-    );
 
   if (!mounted) return <div className="min-h-screen bg-[#0a0a0a]"></div>;
   const handleSaveToVault = async () => {
@@ -340,15 +407,15 @@ export default function Home() {
         {user ? (
           <div className="flex items-center gap-4">
             <span className="text-sm text-neutral-400">
-              Hey, {user.email?.split("@")[0]} 👋
+              Hey, {user.email?.split("@")[0]}
             </span>
 
             {/* 🚨 THE UPGRADED PAYWALL LOGIC 🚨 */}
 
             {/* 🚨 THE UPGRADED PAYWALL LOGIC 🚨 */}
             {isPro ? (
-              <span className="text-xs font-black px-5 py-2 bg-gradient-to-r from-amber-400 to-yellow-300 text-black rounded-full shadow-[0_0_20px_rgba(251,191,36,0.4)] tracking-wide cursor-default">
-                👑 PRO MEMBER
+              <span className="inline-flex items-center gap-1.5 text-xs font-black px-5 py-2 bg-gradient-to-r from-amber-400 to-yellow-300 text-black rounded-full shadow-[0_0_20px_rgba(251,191,36,0.4)] tracking-wide cursor-default">
+                <Crown className="w-3.5 h-3.5" /> PRO MEMBER
               </span>
             ) : (
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
@@ -367,9 +434,9 @@ export default function Home() {
                   onClick={() =>
                     (window.location.href = `https://buy.stripe.com/4gMcN63Oe1JbgVk0US4Ni02?client_reference_id=${user?.id}`)
                   }
-                  className="text-xs font-black px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-black rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
+                  className="inline-flex items-center gap-1.5 text-xs font-black px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-black rounded-full transition-all duration-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]"
                 >
-                  ✈️ 10-Day Tourist Pass ($9.99)
+                  <Plane className="w-3.5 h-3.5" /> 10-Day Tourist Pass ($9.99)
                 </button>
               </div>
             )}
@@ -377,9 +444,9 @@ export default function Home() {
             {/* 👇 THE NEW VAULT LINK 👇 */}
             <Link
               href="/vault"
-              className="text-xs font-bold px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full transition-colors border border-neutral-700"
+              className="text-xs font-bold px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-white rounded-full transition-colors border border-neutral-700 inline-flex items-center gap-1.5"
             >
-              🗄️ My Vault
+              <Archive className="w-3.5 h-3.5" /> My Vault
             </Link>
 
             <button
@@ -428,7 +495,7 @@ export default function Home() {
                 disabled={authLoading}
                 className="w-full py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 font-bold rounded-xl disabled:opacity-50 text-white"
               >
-                {authLoading ? "Sending Link..." : "Send Magic Link ✨"}
+                {authLoading ? "Sending Link..." : "Send Magic Link"}
               </button>
             </form>
             {authMsg && (
@@ -451,8 +518,13 @@ export default function Home() {
         </div>
 
         {errorMsg && (
-          <div className="w-full bg-red-900/20 border border-red-500/50 text-red-300 px-6 py-4 rounded-2xl mb-8 font-medium text-center text-sm">
-            🚨 {errorMsg}
+          <div className="w-full bg-red-900/20 border border-red-500/50 text-red-300 px-6 py-4 rounded-2xl mb-8 font-medium text-center text-sm flex items-center justify-center gap-2">
+            {isPaywall ? (
+              <Lock className="w-4 h-4 shrink-0" />
+            ) : (
+              <TriangleAlert className="w-4 h-4 shrink-0" />
+            )}
+            {errorMsg}
           </div>
         )}
 
@@ -461,7 +533,8 @@ export default function Home() {
           <div className="w-full bg-[#111111] border border-orange-500/30 rounded-[2rem] p-6 sm:p-8 shadow-[0_0_30px_rgba(249,115,22,0.15)] mb-8 relative overflow-hidden animate-fade-in">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-400 via-orange-500 to-pink-500"></div>
             <h3 className="text-xl font-black text-white mb-4 flex items-center gap-2">
-              <span className="text-2xl">🔥</span> Trending in Chicago
+              <Flame className="w-6 h-6 text-orange-500" /> Trending in{" "}
+              {city.split(",")[0].trim() || "your city"}
             </h3>
             {/* 🚨 NEW: Horizontal Scroll Container */}
 
@@ -473,7 +546,7 @@ export default function Home() {
                 <button
                   key={idx}
                   onClick={() => {
-                    setMood("🎫 Live Event");
+                    setMood(LIVE_EVENT_MOOD);
                     setVibe(
                       `I'm attending ${event.name} at ${event.venue}. The event starts at ${event.time}. Ignore my current local time. Build a pre-game and post-game itinerary anchored perfectly around this event's start time.`,
                     );
@@ -482,8 +555,8 @@ export default function Home() {
                   className="min-w-[300px] max-w-[300px] snap-center text-left p-5 bg-[#111111] border border-neutral-800 hover:border-orange-500/50 hover:bg-orange-500/10 rounded-2xl transition-all group flex flex-col gap-3 shrink-0 shadow-lg"
                 >
                   <div className="flex justify-between items-start w-full">
-                    <span className="text-orange-500 text-[10px] font-black uppercase tracking-widest bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20">
-                      🎟️ {event.time}
+                    <span className="inline-flex items-center gap-1 text-orange-500 text-[10px] font-black uppercase tracking-widest bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20">
+                      <Ticket className="w-3 h-3" /> {event.time}
                     </span>
                   </div>
 
@@ -496,14 +569,14 @@ export default function Home() {
                   </h3>
 
                   <p className="text-neutral-400 text-xs font-medium truncate flex items-center gap-1 mt-auto">
-                    📍 {event.venue}
+                    <MapPin className="w-3 h-3 shrink-0" /> {event.venue}
                   </p>
                 </button>
               ))}
 
               {/* Optional: Add a 'Swipe for more' hint at the end */}
               <div className="min-w-[40px] flex items-center justify-center text-neutral-600 shrink-0">
-                ➡️
+                <ChevronRight className="w-5 h-5" />
               </div>
             </div>
           </div>
@@ -511,6 +584,38 @@ export default function Home() {
 
         {/* Control Panel */}
         <div className="w-full bg-[#111111] border border-neutral-800/80 rounded-[2rem] p-6 sm:p-8 shadow-2xl mb-12">
+          {/* City selector */}
+          <div className="mb-8 pb-8 border-b border-neutral-800/50">
+            <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">
+              Which city?
+            </label>
+            <div className="flex flex-wrap gap-2 mb-3">
+              {QUICK_CITIES.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCity(c)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
+                    city === c
+                      ? "bg-white text-black border-white"
+                      : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:border-neutral-600"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center bg-[#1a1a1a] border border-neutral-800 rounded-xl px-4 focus-within:border-pink-500/50 transition-all">
+              <MapPin className="w-4 h-4 text-neutral-500 shrink-0" />
+              <input
+                type="text"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Or type any city (e.g. Seattle, WA)"
+                className="flex-1 bg-transparent px-3 py-3 text-sm focus:outline-none placeholder-neutral-600 text-white"
+              />
+            </div>
+          </div>
+
           <div className="mb-8 pb-8 border-b border-neutral-800/50">
             <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">
               Where are we starting?
@@ -528,7 +633,12 @@ export default function Home() {
                 disabled={findingGPS}
                 className="px-6 py-3 bg-[#2a2a2a] hover:bg-[#333] disabled:opacity-50 text-white rounded-lg font-bold text-sm transition-all flex items-center gap-2"
               >
-                {findingGPS ? "⏳ Locating..." : "📍 GPS"}
+                {findingGPS ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <MapPin className="w-4 h-4" />
+                )}
+                {findingGPS ? "Locating..." : "GPS"}
               </button>
             </div>
           </div>
@@ -556,13 +666,14 @@ export default function Home() {
                 Transit?
               </label>
               <div className="flex flex-col gap-2">
-                {["🚶 Walk", "🚆 CTA", "🚗 Drive/Uber"].map((opt) => (
+                {TRANSIT_OPTIONS.map(({ value, label, Icon }) => (
                   <button
-                    key={opt}
-                    onClick={() => setTransit(opt)}
-                    className={`py-2.5 px-4 rounded-lg text-sm font-semibold text-left transition-all ${transit === opt ? "bg-blue-900/30 text-blue-400 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-white"}`}
+                    key={value}
+                    onClick={() => setTransit(value)}
+                    className={`py-2.5 px-4 rounded-lg text-sm font-semibold text-left transition-all inline-flex items-center gap-2 ${transit === value ? "bg-blue-900/30 text-blue-400 border border-blue-500/50 shadow-[0_0_15px_rgba(59,130,246,0.15)]" : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-white"}`}
                   >
-                    {opt}
+                    <Icon className="w-4 h-4" />
+                    {label}
                   </button>
                 ))}
               </div>
@@ -591,17 +702,14 @@ export default function Home() {
                 Who's going?
               </label>
               <div className="flex gap-2">
-                {["Solo", "Date", "Group"].map((p) => (
+                {PARTY_OPTIONS.map(({ value, label, Icon }) => (
                   <button
-                    key={p}
-                    onClick={() => setParty(p)}
-                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border ${party === p ? "bg-purple-900/30 text-purple-400 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-white"}`}
+                    key={value}
+                    onClick={() => setParty(value)}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all border inline-flex items-center justify-center gap-2 ${party === value ? "bg-purple-900/30 text-purple-400 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-white"}`}
                   >
-                    {p === "Solo"
-                      ? "👤 Solo"
-                      : p === "Date"
-                        ? "👩‍❤️‍👨 Date"
-                        : "👯 Group"}
+                    <Icon className="w-4 h-4" />
+                    {label}
                   </button>
                 ))}
               </div>
@@ -629,31 +737,18 @@ export default function Home() {
               What&apos;s the goal today?
             </label>
             <div className="flex flex-wrap gap-2 mb-5">
-              {[
-                "🚶 Walking Route",
-                "🍷 Chill Date",
-                "🧘 Reset Mind",
-                "☕ Coffee Run",
-                "🐕 Walk Dog",
-
-                "🌆 Explore City",
-                "🗣️ Deep Talks",
-                "🏃 Running Route",
-                "🪩 Turn Up",
-                "📸 Aesthetic",
-                "🍔 Food Coma",
-                "🎫 Live Event",
-              ].map((pin) => (
+              {MOOD_OPTIONS.map(({ value, label, Icon }) => (
                 <button
-                  key={pin}
-                  onClick={() => setMood(mood === pin ? "" : pin)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold border ${
-                    mood === pin
+                  key={value}
+                  onClick={() => setMood(mood === value ? "" : value)}
+                  className={`px-4 py-2 rounded-full text-sm font-semibold border inline-flex items-center gap-2 ${
+                    mood === value
                       ? "bg-white text-black border-white"
                       : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:border-neutral-600"
                   }`}
                 >
-                  {pin}
+                  <Icon className="w-4 h-4" />
+                  {label}
                 </button>
               ))}
             </div>
@@ -683,7 +778,7 @@ export default function Home() {
       {/* 🚀 THE BRAND NEW DYNAMIC LOADER 🚀 */}
       {loading && (
         <div className="w-full mt-8 mb-24 flex justify-center">
-          <DynamicLoader />
+          <DynamicLoader city={city} />
         </div>
       )}
 
@@ -706,138 +801,56 @@ export default function Home() {
               </span>
             </div>
 
-            <div className="bg-[#111111] border border-indigo-500/30 p-5 rounded-2xl text-left w-full shadow-[0_0_30px_rgba(99,102,241,0.05)] mx-auto">
+            <div className="bg-white/[0.03] backdrop-blur-xl border border-indigo-500/20 hover:border-indigo-500/40 transition-all duration-300 p-5 rounded-2xl text-left w-full mx-auto">
               <p className="text-white font-bold mb-2 text-sm flex items-center gap-2">
-                ☁️ Live Weather: {itinerary.weather}
+                <Cloud className="w-4 h-4 text-indigo-400 shrink-0" /> Live Weather: {itinerary.weather}
               </p>
-              <p className="text-indigo-300 text-sm">
-                <strong className="text-indigo-400">Concierge Tip:</strong>{" "}
-                {itinerary.outfit_tip}
+              <p className="text-indigo-300 text-sm flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong className="text-indigo-400">Concierge Tip:</strong>{" "}
+                  {itinerary.outfit_tip}
+                </span>
               </p>
             </div>
 
             {itinerary.id && (
-              <div className="mt-6 flex flex-wrap justify-center gap-4">
-                {/* 🔗 The Existing Share Button */}
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      `https://pathzu.com/route/${itinerary.id}`,
-                    );
-                    alert("Link copied! Text it to your friends.");
-                  }}
-                  className="px-6 py-3 bg-white hover:bg-neutral-200 text-black rounded-full text-sm font-bold transition-all shadow-[0_5px_20px_rgba(255,255,255,0.1)] flex items-center gap-2 active:scale-95"
-                >
-                  🔗 Share this Path
-                </button>
-
-                {/* ⭐️ The NEW Save Button */}
-                {user && ( // Only show to logged-in users!
+              <ShareActions itinerary={itinerary} routeId={itinerary.id}>
+                {/* Save to Vault (logged-in users only) */}
+                {user && (
                   <button
                     onClick={handleSaveToVault}
                     disabled={isSaved}
-                    className={`px-6 py-3 rounded-full text-sm font-bold transition-all shadow-lg flex items-center gap-2 active:scale-95 ${
+                    className={`px-5 py-3 rounded-full text-sm font-bold transition-all flex items-center gap-2 active:scale-95 ${
                       isSaved
                         ? "bg-emerald-900/40 text-emerald-400 border border-emerald-500/50 cursor-default"
-                        : "bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-700"
+                        : `${GLASS_CARD} text-white`
                     }`}
                   >
-                    {isSaved ? "✅ Saved to Vault" : "⭐️ Save to Vault"}
+                    {isSaved ? (
+                      <Check className="w-4 h-4" />
+                    ) : (
+                      <Star className="w-4 h-4" />
+                    )}
+                    {isSaved ? "Saved to Vault" : "Save to Vault"}
                   </button>
                 )}
-              </div>
+              </ShareActions>
             )}
           </div>
+
+          <StartRouteButton itinerary={itinerary} />
 
           {/* ALIGNMENT FIX 2: Make the cards container the exact same width as the weather card */}
           <div className="space-y-6 w-full max-w-2xl mx-auto">
             {itinerary.plan.map((step: any, index: number) => (
-              <div
+              <StepCard
                 key={index}
-                className="bg-[#111111] border border-neutral-800 rounded-2xl p-6 flex flex-col relative overflow-hidden group"
-              >
-                {/* The Vertical Accent Line */}
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-gradient-to-b from-pink-500 to-purple-600"></div>
-
-                {/* PADDING FIX: Added pl-6 here to push text safely away from the line */}
-                <div className="flex flex-col py-1 pl-6">
-                  <div className="mb-4">
-                    <span className="bg-black border border-neutral-800 text-pink-400 font-bold text-xs tracking-widest uppercase px-4 py-1.5 rounded-full inline-block">
-                      {step.time || "Time TBD"}
-                    </span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2">
-                    {step.title}
-                  </h3>
-
-                  {/* DUPLICATE FIX: Only ONE location tag here now */}
-                  <p className="text-pink-500 text-xs font-bold mb-3 tracking-wide">
-                    📍 {step.place}
-                  </p>
-                  {/* Premium Google Places Image */}
-                  {step.image_url && (
-                    <div className="w-full h-48 mb-4 overflow-hidden rounded-xl border border-neutral-800 shadow-lg relative group">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={step.image_url}
-                        alt={step.place}
-                        className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500 ease-out"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-                  )}
-
-                  {/* Price Tag */}
-                  {step.cost_estimate && (
-                    <div className="mb-4">
-                      <span className="text-emerald-400 text-[10px] font-bold tracking-widest uppercase bg-emerald-900/20 px-3 py-1.5 rounded-md border border-emerald-800/50">
-                        💵 {step.cost_estimate}
-                      </span>
-                    </div>
-                  )}
-
-                  <p className="text-neutral-400 text-sm mb-6 leading-relaxed">
-                    {step.description}
-                  </p>
-                  <div className="flex flex-wrap gap-3 mt-auto">
-                    <button
-                      onClick={() =>
-                        window.open(
-                          `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(step.place + ", Chicago, IL")}`,
-                          "_blank",
-                        )
-                      }
-                      className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 shadow-md"
-                    >
-                      🗺️ Google Maps
-                    </button>
-                    <button
-                      onClick={() =>
-                        window.open(
-                          `https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=${encodeURIComponent(step.place + ", Chicago, IL")}`,
-                          "_blank",
-                        )
-                      }
-                      className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 shadow-md"
-                    >
-                      🚗 Request Uber
-                    </button>
-                    {/* 👇 THE BRAND NEW SWAP BUTTON 👇 */}
-                    <button
-                      onClick={() => handleSwapSpot(index, step)}
-                      disabled={swappingIndex === index}
-                      className="bg-neutral-900 border border-neutral-700 text-neutral-300 px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-800 hover:text-white transition-colors flex items-center gap-2 disabled:opacity-50"
-                    >
-                      {swappingIndex === index ? (
-                        <span className="animate-spin text-pink-500">⏳</span>
-                      ) : (
-                        "🔄 Swap this spot"
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
+                step={step}
+                city={getCity(itinerary)}
+                onSwap={() => handleSwapSpot(index, step)}
+                swapping={swappingIndex === index}
+              />
             ))}
           </div>
         </div>
@@ -846,11 +859,17 @@ export default function Home() {
   );
 }
 
-export function DynamicLoader({ isSwapping = false }) {
+export function DynamicLoader({
+  isSwapping = false,
+  city = DEFAULT_CITY,
+}: {
+  isSwapping?: boolean;
+  city?: string;
+}) {
   const [messageIndex, setMessageIndex] = useState(0);
 
   const generateMessages = [
-    "Consulting local Chicago experts...",
+    `Consulting local ${city.split(",")[0].trim() || "city"} experts...`,
     "Checking live Ticketmaster events...",
     "Mapping the best transit routes...",
     "Vibe check in progress...",

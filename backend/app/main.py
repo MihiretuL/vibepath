@@ -1,7 +1,7 @@
 import asyncio 
 import os
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import json
 import stripe
 import io
@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from typing import Optional
-from app.services.gemini_engine import generate_vibe_itinerary, swap_spot_with_ai
+from app.services.gemini_engine import generate_vibe_itinerary, swap_spot_with_ai, parse_city
 from typing import Dict, Any # Make sure this is imported at the top!
 
 # Load environment variables (This grabs your URL and Key!)
@@ -49,6 +49,7 @@ class VibeRequest(BaseModel):
     prompt: str
     time_context: str
     location: str
+    city: str = "Chicago, IL"  # Defaults to Chicago for older clients
     user_id: Optional[str] = None  # Allows the frontend to pass the user's ID!
 class SwapRequest(BaseModel):
     vibe: str
@@ -114,7 +115,7 @@ async def generate_route(req: VibeRequest):
             if expires_at_str:
                 # Convert the database string to a real Python datetime object
                 expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
-                now = datetime.now(datetime.timezone.utc)
+                now = datetime.now(timezone.utc)
                 if expires_at > now:
                     has_active_tourist_pass = True
         else:
@@ -175,7 +176,12 @@ async def generate_route(req: VibeRequest):
     try:
         # 6. Parse the text back into a Python dictionary
         itinerary_data = json.loads(raw_itinerary)
-        
+
+        # Remember the city so shared routes and vault items stay city-aware
+        if "error" not in itinerary_data:
+            itinerary_data["city"] = req.city
+            raw_itinerary = json.dumps(itinerary_data)
+
         # 7. Save the payload securely to Supabase
         print("💾 Saving route to PostgreSQL database...")
         
@@ -262,17 +268,26 @@ async def create_checkout_session(req: CheckoutRequest):
         return {"error": str(e)}
 
 @app.get("/api/events")
-async def get_frontend_events(city: str = "Chicago"):
+async def get_frontend_events(city: str = "Chicago, IL"):
     tm_key = os.getenv("TICKETMASTER_API_KEY")
     if not tm_key:
         return {"events": []}
-        
+
     try:
         now_iso = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-        # 🚨 CHANGED: size=10 to grab more events!
-        url = f"https://app.ticketmaster.com/discovery/v2/events.json?apikey={tm_key}&city={city}&startDateTime={now_iso}&sort=date,asc&size=10"
-        
-        response = requests.get(url, timeout=5)
+        # "Austin, TX" -> city="Austin", stateCode="TX"
+        city_name, state_code = parse_city(city)
+        params = {
+            "apikey": tm_key,
+            "city": city_name,
+            "startDateTime": now_iso,
+            "sort": "date,asc",
+            "size": 10,
+        }
+        if state_code:
+            params["stateCode"] = state_code
+
+        response = requests.get("https://app.ticketmaster.com/discovery/v2/events.json", params=params, timeout=5)
         data = response.json()
         
         if response.status_code != 200 or "_embedded" not in data:
@@ -315,7 +330,7 @@ async def stripe_webhook(request: Request):
     try:
         event = stripe.Webhook.construct_event(payload, sig_header, webhook_secret)
     except Exception as e:
-        return HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
     if event['type'] == 'checkout.session.completed':
         session = event['data']['object']
@@ -328,7 +343,6 @@ async def stripe_webhook(request: Request):
                 if amount_paid == 999:
                     print(f"✈️ TOURIST PASS SOLD! Granting 10 days to {user_id}...")
                     
-                    from datetime import datetime, timedelta, timezone
                     now = datetime.now(timezone.utc)
                     expiration_date = now + timedelta(days=10)
                     

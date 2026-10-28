@@ -3,6 +3,8 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
+import { Archive, Clock, ExternalLink, Lock, MapPin } from "lucide-react";
+import { getCity } from "../../../lib/pathzu";
 
 // Initialize Supabase using your existing public environment variables
 const supabase = createClient(
@@ -62,7 +64,9 @@ export default function VaultPage() {
   if (!user) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-6">
-        <h1 className="text-3xl font-bold mb-4">Your Vault is Locked 🔒</h1>
+        <h1 className="text-3xl font-bold mb-4 flex items-center gap-3">
+          Your Vault is Locked <Lock className="w-7 h-7" />
+        </h1>
         <p className="text-neutral-400">
           Please sign in to view your saved paths.
         </p>
@@ -74,14 +78,16 @@ export default function VaultPage() {
     <div className="min-h-screen bg-black text-white p-8 md:p-16">
       <div className="max-w-6xl mx-auto">
         <div className="mb-10">
-          <h1 className="text-4xl font-bold mb-2">My Vault 🗄️</h1>
+          <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
+            My Vault <Archive className="w-8 h-8 text-neutral-400" />
+          </h1>
           <p className="text-neutral-400">
             All your generated adventures, safely stored.
           </p>
         </div>
 
         {itineraries.length === 0 ? (
-          <div className="text-center py-20 border border-neutral-800 rounded-2xl bg-neutral-900/50">
+          <div className="text-center py-20 bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] rounded-2xl">
             <p className="text-xl text-neutral-400 mb-4">
               Your vault is empty!
             </p>
@@ -101,7 +107,7 @@ export default function VaultPage() {
 
               return (
                 <Link href={`/route/${route.id}`} key={route.id}>
-                  <div className="border border-neutral-800 rounded-2xl bg-neutral-900 hover:border-indigo-500 hover:shadow-[0_0_20px_rgba(99,102,241,0.15)] transition-all group h-full flex flex-col cursor-pointer overflow-hidden">
+                  <div className="bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] hover:border-white/[0.15] transition-all duration-300 rounded-2xl group h-full flex flex-col cursor-pointer overflow-hidden">
                     {/* 🚨 THE NEW THUMBNAIL IMAGE BLOCK */}
                     {thumbnailPhoto ? (
                       <div className="w-full h-48 relative overflow-hidden">
@@ -114,7 +120,7 @@ export default function VaultPage() {
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                         {/* Gradient overlay for better text readability */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-neutral-900 to-transparent"></div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                       </div>
                     ) : (
                       // Fallback if no photo found
@@ -125,15 +131,22 @@ export default function VaultPage() {
 
                     {/* Card Content (Adjusted padding to p-5 for better fit) */}
                     <div className="p-5 flex-grow flex flex-col">
-                      <h2 className="text-lg font-bold mb-3 group-hover:text-indigo-400 transition-colors line-clamp-2">
-                        {route.title || "My Pathzu Route"}
+                      <h2 className="text-lg font-bold mb-2 group-hover:text-indigo-400 transition-colors line-clamp-2 flex items-start justify-between gap-2">
+                        <span>{route.title || "My Pathzu Route"}</span>
+                        <ExternalLink className="w-4 h-4 mt-1 shrink-0 text-neutral-600 group-hover:text-indigo-400 transition-colors" />
                       </h2>
+                      {/* Older routes have no city; falls back to Chicago, IL */}
+                      <p className="text-neutral-400 text-xs mb-3 flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 shrink-0" />
+                        {getCity(route.full_json)}
+                      </p>
 
-                      <div className="mt-auto pt-3 flex items-center justify-between text-xs text-neutral-500 border-t border-neutral-800">
-                        <span className="px-3 py-1 bg-neutral-800 rounded-full truncate max-w-[150px]">
+                      <div className="mt-auto pt-3 flex items-center justify-between text-xs text-neutral-500 border-t border-white/[0.08]">
+                        <span className="px-3 py-1 bg-white/[0.05] rounded-full truncate max-w-[150px]">
                           {route.vibe || "Custom Vibe"}
                         </span>
-                        <span>
+                        <span className="inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
                           {new Date(route.created_at).toLocaleDateString()}
                         </span>
                       </div>
