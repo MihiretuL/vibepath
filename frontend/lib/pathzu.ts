@@ -94,3 +94,69 @@ export const sharePlan = async (itinerary: Itinerary, routeId: string) => {
 export const copyPlanLink = async (routeId: string) => {
   await navigator.clipboard.writeText(`${window.location.origin}/route/${routeId}`);
 };
+
+// --- City auto-detection -------------------------------------------------
+
+const GEO_TIMEOUT_MS = 6000;
+
+// "City, ST" for US/Canada; "City, Country" elsewhere (the backend only reads
+// a 2-letter state code, so a country name is simply ignored by Ticketmaster).
+const formatCity = (
+  city?: string,
+  stateCode?: string,
+  countryCode?: string,
+  countryName?: string,
+): string | null => {
+  if (!city) return null;
+  if (stateCode && (countryCode === "US" || countryCode === "CA")) {
+    return `${city}, ${stateCode}`;
+  }
+  return countryName ? `${city}, ${countryName}` : city;
+};
+
+const getBrowserPosition = () =>
+  new Promise<GeolocationPosition>((resolve, reject) => {
+    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+      reject(new Error("Geolocation unsupported"));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      timeout: GEO_TIMEOUT_MS,
+    });
+  });
+
+const cityFromCoords = async (lat: number, lng: number) => {
+  const res = await fetch(
+    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
+    { signal: AbortSignal.timeout(GEO_TIMEOUT_MS) },
+  );
+  const d = await res.json();
+  // principalSubdivisionCode looks like "US-IL"
+  const stateCode = (d.principalSubdivisionCode || "").split("-")[1];
+  return formatCity(d.city || d.locality, stateCode, d.countryCode, d.countryName);
+};
+
+const cityFromIp = async () => {
+  const res = await fetch("https://ipapi.co/json/", {
+    signal: AbortSignal.timeout(GEO_TIMEOUT_MS),
+  });
+  const d = await res.json();
+  return formatCity(d.city, d.region_code, d.country_code, d.country_name);
+};
+
+// Browser geolocation first; if it's denied, times out, or the reverse lookup
+// fails, fall back to IP so detection almost never comes up empty.
+export const detectCity = async (): Promise<string | null> => {
+  try {
+    const { coords } = await getBrowserPosition();
+    const city = await cityFromCoords(coords.latitude, coords.longitude);
+    if (city) return city;
+  } catch {
+    // fall through to IP lookup
+  }
+  try {
+    return await cityFromIp();
+  } catch {
+    return null;
+  }
+};

@@ -187,7 +187,8 @@ def generate_vibe_itinerary(req) -> str:
     4. EVENT AWARENESS: Look at the LIVE CITY EVENTS. If an event matches the user's mood and is within their radius, try to include it. If not, ignore the events.
     5. STRICT TRANSIT & REALITY CHECK: The user selected "{req.transit}". 
     - If they chose "Walk", the route MUST stay within a 2-mile radius of their starting location, EVEN IF the Radius constraint says "Anywhere". Humans cannot walk across the entire city.
-    - Do NOT mention driving/parking if they chose Walk/CTA. Do NOT mention public transit/trains if they chose Walk or Drive. Ensure the distance between Steps 1, 2, and 3 is logical for this transit type.
+    - If they chose "Public Transit", every step must be reachable by {city}'s real public transit system (name its actual lines/modes, e.g. subway, metro, bus, light rail) with a short walk at either end. If {city} has little or no public transit, keep the steps close together and say so briefly instead of inventing lines.
+    - Do NOT mention driving/parking if they chose Walk or Public Transit. Do NOT mention public transit/trains if they chose Walk or Drive. Ensure the distance between Steps 1, 2, and 3 is logical for this transit type.
     6. WEATHER AWARENESS: Write a 1-sentence 'outfit_tip' suggesting what to wear specifically for "{req.transit}" in "{current_weather}".
     7. Keep location descriptions short (Max 15 words).
     8. Return ONLY valid JSON.

@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../../lib/supabase";
 import { GiMagicHat } from "react-icons/gi"; // magic-related icon
 import { FaChess } from "react-icons/fa"; // any fun icon
@@ -20,6 +20,7 @@ import {
   Footprints,
   Heart,
   Loader2,
+  LocateFixed,
   Lock,
   MapPin,
   MessageCircle,
@@ -37,7 +38,12 @@ import {
   Wine,
   type LucideIcon,
 } from "lucide-react";
-import { DEFAULT_CITY, QUICK_CITIES, getCity } from "../../lib/pathzu";
+import {
+  DEFAULT_CITY,
+  QUICK_CITIES,
+  detectCity,
+  getCity,
+} from "../../lib/pathzu";
 import {
   GLASS_CARD,
   ShareActions,
@@ -52,7 +58,7 @@ type PillOption = { value: string; label: string; Icon: LucideIcon };
 
 const TRANSIT_OPTIONS: PillOption[] = [
   { value: "\u{1F6B6} Walk", label: "Walk", Icon: Footprints },
-  { value: "\u{1F686} CTA", label: "CTA", Icon: TrainFront },
+  { value: "\u{1F686} Public Transit", label: "Transit", Icon: TrainFront },
   { value: "\u{1F697} Drive/Uber", label: "Drive/Uber", Icon: Car },
 ];
 
@@ -192,6 +198,43 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isPaywall, setIsPaywall] = useState(false);
   const [city, setCity] = useState(DEFAULT_CITY);
+  const [detectingCity, setDetectingCity] = useState(false);
+  const [cityDetectFailed, setCityDetectFailed] = useState(false);
+  // Once the user picks or types a city, auto-detection must never overwrite it.
+  const cityPickedManually = useRef(false);
+
+  const pickCity = (c: string) => {
+    cityPickedManually.current = true;
+    setCityDetectFailed(false);
+    setCity(c);
+  };
+
+  // "Near Me" button: explicit request, so it always applies the result.
+  const handleNearMe = async () => {
+    setDetectingCity(true);
+    setCityDetectFailed(false);
+    const detected = await detectCity();
+    if (detected) {
+      cityPickedManually.current = true;
+      setCity(detected);
+    } else {
+      setCityDetectFailed(true);
+    }
+    setDetectingCity(false);
+  };
+
+  // Silent auto-detect on first load, unless the user already chose a city.
+  useEffect(() => {
+    let cancelled = false;
+    detectCity().then((detected) => {
+      if (detected && !cancelled && !cityPickedManually.current) {
+        setCity(detected);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [liveEvents, setLiveEvents] = useState<any[]>([]);
 
   // Fetch live Ticketmaster events for the selected city
@@ -590,10 +633,22 @@ export default function Home() {
               Which city?
             </label>
             <div className="flex flex-wrap gap-2 mb-3">
+              <button
+                onClick={handleNearMe}
+                disabled={detectingCity}
+                className="px-4 py-2 rounded-full text-sm font-semibold border transition-all inline-flex items-center gap-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 border-transparent text-white disabled:opacity-70"
+              >
+                {detectingCity ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <LocateFixed className="w-4 h-4" />
+                )}
+                {detectingCity ? "Locating..." : "Near Me"}
+              </button>
               {QUICK_CITIES.map((c) => (
                 <button
                   key={c}
-                  onClick={() => setCity(c)}
+                  onClick={() => pickCity(c)}
                   className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
                     city === c
                       ? "bg-white text-black border-white"
@@ -609,11 +664,17 @@ export default function Home() {
               <input
                 type="text"
                 value={city}
-                onChange={(e) => setCity(e.target.value)}
+                onChange={(e) => pickCity(e.target.value)}
                 placeholder="Or type any city (e.g. Seattle, WA)"
                 className="flex-1 bg-transparent px-3 py-3 text-sm focus:outline-none placeholder-neutral-600 text-white"
               />
             </div>
+            {cityDetectFailed && (
+              <p className="mt-2 text-xs text-neutral-500">
+                Couldn&apos;t detect your city automatically. Pick one above or
+                type it in.
+              </p>
+            )}
           </div>
 
           <div className="mb-8 pb-8 border-b border-neutral-800/50">
