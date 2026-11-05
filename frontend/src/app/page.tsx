@@ -5,6 +5,11 @@ import { GiMagicHat } from "react-icons/gi"; // magic-related icon
 import { FaChess } from "react-icons/fa"; // any fun icon
 import Link from "next/link";
 import {
+  Wind,
+  Apple,
+  Guitar,
+  TreePalm,
+  Clapperboard,
   Activity,
   Archive,
   Brain,
@@ -26,7 +31,6 @@ import {
   MessageCircle,
   PartyPopper,
   Plane,
-  Plus,
   Search,
   Sparkles,
   Star,
@@ -50,9 +54,43 @@ import {
 import {
   GLASS_CARD,
   ShareActions,
-  StartRouteButton,
   StepCard,
 } from "../components/RouteParts";
+
+const CITY_PILLS: { city: string; name: string; Icon: LucideIcon }[] = [
+  { city: "Chicago, IL", name: "Chicago", Icon: Wind },
+  { city: "New York, NY", name: "New York", Icon: Apple },
+  { city: "Austin, TX", name: "Austin", Icon: Guitar },
+  { city: "Miami, FL", name: "Miami", Icon: TreePalm },
+  { city: "Los Angeles, CA", name: "Los Angeles", Icon: Clapperboard },
+];
+
+const PILL_BASE =
+  "shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm border transition-all whitespace-nowrap";
+const PILL_ACTIVE = "bg-white text-black border-white font-bold";
+const PILL_INACTIVE =
+  "bg-transparent text-white border-white/20 font-medium hover:border-white/50";
+
+// 30-minute time pills ("6:00 PM", "6:30 PM", ...) between two hours (24h, inclusive)
+const buildTimeSlots = (fromHour: number, toHour: number) => {
+  const slots: string[] = [];
+  for (let h = fromHour; h <= toHour; h++) {
+    for (const m of [0, 30]) {
+      if (h === toHour && m > 0) continue;
+      slots.push(`${h % 12 || 12}:${m === 0 ? "00" : "30"} ${h >= 12 ? "PM" : "AM"}`);
+    }
+  }
+  return slots;
+};
+
+const TIME_SLOTS: Record<string, string[]> = {
+  "Later Tonight": buildTimeSlots(17, 23),
+  Tomorrow: buildTimeSlots(8, 22),
+};
+const DEFAULT_START: Record<string, string> = {
+  "Later Tonight": "7:00 PM",
+  Tomorrow: "10:00 AM",
+};
 
 const LIVE_EVENT_MOOD = "\u{1F3AB} Live Event";
 
@@ -200,6 +238,13 @@ export default function Home() {
   const [location, setLocation] = useState("");
   const [findingGPS, setFindingGPS] = useState(false);
   const [timing, setTiming] = useState("Right Now");
+  // Exact start time (e.g. "7:30 PM") for Later Tonight / Tomorrow
+  const [startTime, setStartTime] = useState("7:00 PM");
+
+  const pickTiming = (opt: string) => {
+    setTiming(opt);
+    if (DEFAULT_START[opt]) setStartTime(DEFAULT_START[opt]);
+  };
   const [transit, setTransit] = useState(TRANSIT_OPTIONS[0].value);
   const [distance, setDistance] = useState("Neighborhood");
   const [party, setParty] = useState("Solo");
@@ -429,6 +474,8 @@ export default function Home() {
       location: formattedLocation, // 🚨 Using your upgraded location
       city: selectedCity,
       timing,
+      start_time:
+        timing === "Right Now" ? null : startTime,
       transit,
       distance,
       party,
@@ -653,26 +700,33 @@ export default function Home() {
                       `I'm attending ${event.name} at ${event.venue}. The event starts at ${event.time}. Ignore my current local time. Build a pre-game and post-game itinerary anchored perfectly around this event's start time.`,
                     );
                   }}
-                  // 🚨 NEW: Wider cards (300px), better padding, and snap-center
-                  className="min-w-[300px] max-w-[300px] snap-center text-left p-5 bg-[#111111] border border-neutral-800 hover:border-orange-500/50 hover:bg-orange-500/10 rounded-2xl transition-all group flex flex-col gap-3 shrink-0 shadow-lg"
+                  className="snap-center text-left shrink-0"
                 >
-                  <div className="flex justify-between items-start w-full">
-                    <span className="inline-flex items-center gap-1 text-orange-500 text-[10px] font-black uppercase tracking-widest bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20">
-                      <Ticket className="w-3 h-3" /> {event.time}
-                    </span>
+                  <div className="flex flex-row h-32 bg-[#121212] rounded-2xl border border-white/10 overflow-hidden cursor-pointer hover:border-white/30 transition-colors shrink-0 w-80">
+                    <div className="w-28 h-full relative shrink-0">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={
+                          event.images?.[0]?.url ||
+                          event.image ||
+                          "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800"
+                        }
+                        alt={event.name}
+                        className="absolute inset-0 w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="flex-1 p-3 flex flex-col justify-center overflow-hidden">
+                      <p className="text-orange-400 text-xs font-bold">
+                        {event.time}
+                      </p>
+                      <h3 className="text-white font-bold text-sm line-clamp-2">
+                        {event.name}
+                      </h3>
+                      <p className="text-gray-400 text-xs mt-1 truncate">
+                        {event.venue}
+                      </p>
+                    </div>
                   </div>
-
-                  {/* line-clamp-2 allows exactly two lines of text before adding '...' */}
-                  <h3
-                    className="text-lg font-bold text-white leading-tight line-clamp-2"
-                    title={event.name}
-                  >
-                    {event.name}
-                  </h3>
-
-                  <p className="text-neutral-400 text-xs font-medium truncate flex items-center gap-1 mt-auto">
-                    <MapPin className="w-3 h-3 shrink-0" /> {event.venue}
-                  </p>
                 </button>
               ))}
 
@@ -691,14 +745,12 @@ export default function Home() {
             <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">
               Which city?
             </label>
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex overflow-x-auto gap-3 pb-2 no-scrollbar">
               <button
                 onClick={handleNearMe}
                 disabled={detectingCity}
-                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all inline-flex items-center gap-2 disabled:opacity-70 ${
-                  nearMeActive || detectingCity
-                    ? "bg-white text-black border-white"
-                    : "bg-[#1a1a1a] text-neutral-300 border-neutral-700 hover:border-neutral-500"
+                className={`${PILL_BASE} disabled:opacity-70 ${
+                  nearMeActive || detectingCity ? PILL_ACTIVE : PILL_INACTIVE
                 }`}
               >
                 {detectingCity ? (
@@ -712,47 +764,49 @@ export default function Home() {
                     ? `Near Me · ${city.split(",")[0].trim()}`
                     : "Near Me"}
               </button>
-              {QUICK_CITIES.map((c) => (
+
+              {CITY_PILLS.map(({ city: c, name, Icon }) => (
                 <button
                   key={c}
                   onClick={() => pickQuickCity(c)}
-                  className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
-                    city === c && !nearMeActive
-                      ? "bg-white text-black border-white"
-                      : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:border-neutral-600"
+                  className={`${PILL_BASE} ${
+                    city === c && !nearMeActive ? PILL_ACTIVE : PILL_INACTIVE
                   }`}
                 >
-                  {c}
+                  <Icon className="w-4 h-4" />
+                  {name}
                 </button>
               ))}
-              {/* "+ Other" expands into an inline search box for any city */}
-              <button
-                onClick={() => {
-                  if (!customOpen && customCity.trim()) pickCity(customCity.trim());
-                  setCustomOpen(!customOpen);
-                }}
-                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all inline-flex items-center gap-2 ${
-                  customOpen || customActive
-                    ? "bg-white text-black border-white"
-                    : "bg-white/[0.03] backdrop-blur-xl text-neutral-400 border-white/[0.08] hover:border-white/[0.15]"
-                }`}
-              >
-                <Plus className="w-4 h-4" />
-                {!customOpen && customActive ? city.split(",")[0].trim() : "Other"}
-              </button>
-              {customOpen && (
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] backdrop-blur-xl border border-white/[0.15] focus-within:border-white/40 transition-all">
-                  <Search className="w-4 h-4 text-neutral-500 shrink-0" />
+
+              {/* Search: matching pill that turns into an inline input */}
+              {customOpen ? (
+                <div
+                  className={`${PILL_BASE} ${customActive ? "border-white" : "border-white/20"} focus-within:border-white`}
+                >
+                  <Search className="w-4 h-4 text-white shrink-0" />
                   <input
                     autoFocus
                     type="text"
                     value={customCity}
                     onChange={(e) => handleCustomCity(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                    onKeyDown={(e) =>
+                      e.key === "Enter" && e.currentTarget.blur()
+                    }
                     placeholder="Search City... (e.g. Nashville, TN)"
-                    className="bg-transparent text-sm w-56 focus:outline-none placeholder-neutral-600 text-white"
+                    className="bg-transparent text-sm w-56 focus:outline-none placeholder-neutral-500 text-white"
                   />
                 </div>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (customCity.trim()) pickCity(customCity.trim());
+                    setCustomOpen(true);
+                  }}
+                  className={`${PILL_BASE} ${customActive ? PILL_ACTIVE : PILL_INACTIVE}`}
+                >
+                  <Search className="w-4 h-4" />
+                  {customActive ? city.split(",")[0].trim() : "Search"}
+                </button>
               )}
             </div>
             {cityDetectFailed && (
@@ -804,12 +858,29 @@ export default function Home() {
                 {["Right Now", "Later Tonight", "Tomorrow"].map((opt) => (
                   <button
                     key={opt}
-                    onClick={() => setTiming(opt)}
+                    onClick={() => pickTiming(opt)}
                     className={`py-2.5 px-4 rounded-lg text-sm font-semibold text-left transition-all ${timing === opt ? "bg-purple-900/30 text-purple-400 border border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.15)]" : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:bg-neutral-800 hover:text-white"}`}
                   >
                     {opt}
                   </button>
                 ))}
+                {TIME_SLOTS[timing] && (
+                  <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar -mx-1 px-1">
+                    {TIME_SLOTS[timing].map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setStartTime(t)}
+                        className={`shrink-0 px-3.5 py-2 rounded-full text-xs font-semibold backdrop-blur-xl border transition-all ${
+                          startTime === t
+                            ? "bg-white/10 border-white text-white"
+                            : "bg-white/[0.04] border-white/10 text-neutral-500 hover:text-neutral-300 hover:border-white/25"
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div>
@@ -990,8 +1061,6 @@ export default function Home() {
               </ShareActions>
             )}
           </div>
-
-          <StartRouteButton itinerary={itinerary} />
 
           {/* ALIGNMENT FIX 2: Make the cards container the exact same width as the weather card */}
           <div className="space-y-6 w-full max-w-2xl mx-auto">

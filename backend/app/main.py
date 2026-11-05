@@ -48,6 +48,7 @@ class VibeRequest(BaseModel):
     mood: str
     prompt: str
     time_context: str
+    start_time: Optional[str] = None  # exact start, e.g. "7:30 PM"; older clients omit it
     location: str
     city: str = "Chicago, IL"  # Defaults to Chicago for older clients
     user_id: Optional[str] = None  # Allows the frontend to pass the user's ID!
@@ -312,7 +313,15 @@ async def get_frontend_events(city: str = "Chicago, IL"):
                 except:
                     display_time = raw_time
 
-            event_list.append({"name": name, "venue": venue_name, "time": display_time})
+            # Pick a wide (~16:9) image that is big enough for a card background
+            image_url = None
+            imgs = [i for i in e.get("images", []) if i.get("url")]
+            wide = [i for i in imgs if i.get("ratio") == "16_9" and (i.get("width") or 0) >= 640]
+            best = sorted(wide or imgs, key=lambda i: i.get("width") or 0)
+            if best:
+                image_url = best[0]["url"]
+
+            event_list.append({"name": name, "venue": venue_name, "time": display_time, "image": image_url, "images": [{"url": image_url}] if image_url else []})
             
         return {"events": event_list}
     except Exception as e:

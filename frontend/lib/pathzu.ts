@@ -57,9 +57,10 @@ export const openMapsToSpot = (step: PlanStep, city: string) =>
     "_blank",
   );
 
-// Pins the exact destination in the Uber app. Coordinates are only added when
+// Universal link that pre-fills the exact destination in the Uber app. Used as
+// an <a href> so the OS hands off to the app. Coordinates are only added when
 // the step has them (older routes won't).
-export const requestUberToSpot = (step: PlanStep, city: string) => {
+export const uberLinkToSpot = (step: PlanStep, city: string): string => {
   let url =
     `https://m.uber.com/ul/?action=setPickup&pickup=my_location` +
     `&dropoff[nickname]=${encodeURIComponent(step.place)}` +
@@ -67,7 +68,7 @@ export const requestUberToSpot = (step: PlanStep, city: string) => {
   if (step.lat != null && step.lng != null) {
     url += `&dropoff[latitude]=${step.lat}&dropoff[longitude]=${step.lng}`;
   }
-  window.open(url, "_blank");
+  return url;
 };
 
 export const buildShareMessage = (itinerary: Itinerary, routeId: string) => {

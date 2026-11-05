@@ -159,6 +159,17 @@ def generate_vibe_itinerary(req) -> str:
         time_rule = "10. ⏰ STRICT TIME ENFORCEMENT: The user selected 'Tomorrow'. Provide a full day plan starting around 10:00 AM."
     elif req.timing == "Right Now":
         time_rule = "10. ⏰ STRICT TIME ENFORCEMENT: The user selected 'Right Now'. Start the first step within 30 minutes of the Current Local Time."
+
+    start_time = (getattr(req, "start_time", None) or "").strip()
+    if start_time and req.timing in ("Later Tonight", "Tomorrow"):
+        day = "tonight" if req.timing == "Later Tonight" else "tomorrow"
+        time_rule = (
+            f"10. ⏰ EXACT START TIME + TRAVEL BUFFER: The user chose to start {day} at {start_time}. "
+            "When a user selects a specific start time, you MUST add a realistic 15 to 30-minute prep and travel buffer before the first stop. "
+            f"For example, if they request 10:00 AM, the first stop should logically begin around 10:20 AM or 10:30 AM. "
+            f"Do not start the first activity at the exact requested minute. So the 'time' of the FIRST step must be {start_time} plus 15 to 30 minutes, "
+            "and the remaining steps must follow in realistic order after it. This overrides any other timing guidance."
+        )
     
 
     system_instruction = f"""
@@ -172,7 +183,7 @@ def generate_vibe_itinerary(req) -> str:
     - Current Weather: {current_weather}
     - 🚨 LIVE CITY EVENTS TODAY: 
     {live_events}
-    - When: {req.timing}
+    - When: {req.timing}{(' at ' + req.start_time) if getattr(req, 'start_time', None) else ''}
     - Transit: {req.transit}
     - Radius: {req.distance}
     - Party: {req.party}
@@ -193,6 +204,7 @@ def generate_vibe_itinerary(req) -> str:
     7. Keep location descriptions short (Max 15 words).
     8. Return ONLY valid JSON.
     9. BUDGET & PRICING: The user has a budget of "{req.budget}". For EVERY step, you MUST provide a realistic 'cost_estimate'. If it is a park or walking path, write "Free". If it's a cafe/restaurant, estimate the cost per person (e.g., "$$ - Approx $25"). If it's a museum or venue, estimate the entry fee (e.g., "$15 Entry").
+    11. 📏 CAP THE "ANYWHERE" RADIUS: If the radius is set to 'Anywhere', the locations must still be within a reasonable, low-friction driving distance from the starting point (maximum 15 to 20-minute drive, roughly 3 to 5 miles). Never send the user on long regional road trips or to entirely different boroughs/cities.
     {time_rule}
     JSON SCHEMA:
     {{

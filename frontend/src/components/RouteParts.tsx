@@ -13,9 +13,8 @@ import {
   Share2,
 } from "lucide-react";
 import {
-  getCity,
   openMapsToSpot,
-  requestUberToSpot,
+  uberLinkToSpot,
   sharePlan,
   type Itinerary,
   type PlanStep,
@@ -23,21 +22,6 @@ import {
 
 export const GLASS_CARD =
   "bg-white/[0.03] backdrop-blur-xl border border-white/[0.08] hover:border-white/[0.15] transition-all duration-300";
-
-// Primary CTA above the step cards: one tap to an Uber pinned to Stop 1.
-export function StartRouteButton({ itinerary }: { itinerary: Itinerary }) {
-  const first = itinerary.plan?.[0];
-  if (!first) return null;
-  return (
-    <button
-      onClick={() => requestUberToSpot(first, getCity(itinerary))}
-      className="w-full max-w-2xl mx-auto mb-8 px-6 py-4 bg-black hover:bg-gray-900 text-white border border-white/20 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
-    >
-      <Car className="w-5 h-5 shrink-0" />
-      <span className="truncate">Start Route: Uber to {first.place}</span>
-    </button>
-  );
-}
 
 export function ShareActions({
   itinerary,
@@ -144,12 +128,14 @@ export function StepCard({
           >
             <Navigation className="w-4 h-4" /> Google Maps
           </button>
-          <button
-            onClick={() => requestUberToSpot(step, city)}
-            className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 shadow-md flex items-center gap-2"
+          <a
+            href={uberLinkToSpot(step, city)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="bg-white text-black px-5 py-2.5 rounded-full font-bold text-sm hover:bg-neutral-200 shadow-md flex items-center gap-2 no-underline"
           >
             <Car className="w-4 h-4" /> Request Uber
-          </button>
+          </a>
           {onSwap && (
             <button
               onClick={onSwap}

@@ -6,7 +6,6 @@ import { HeartCrack, MapPin } from "lucide-react";
 import { getCity, type Itinerary } from "../../../../lib/pathzu";
 import {
   ShareActions,
-  StartRouteButton,
   StepCard,
 } from "../../../components/RouteParts";
 
@@ -105,8 +104,6 @@ export default function SharedRoutePage() {
                 <ShareActions itinerary={itinerary} routeId={routeId} />
               )}
             </div>
-
-            <StartRouteButton itinerary={itinerary} />
 
             <div className="space-y-6 w-full max-w-2xl mx-auto">
               {itinerary.plan.map((step, index) => (
