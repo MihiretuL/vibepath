@@ -55,6 +55,7 @@ class SwapRequest(BaseModel):
     vibe: str
     spot_to_replace: Dict[str, Any]
     current_route: Dict[str, Any]
+    transit: Optional[str] = None  # e.g. "🚶 Walk"; older clients omit it
 
 class CheckoutRequest(BaseModel):
     user_id: str
@@ -180,6 +181,7 @@ async def generate_route(req: VibeRequest):
         # Remember the city so shared routes and vault items stay city-aware
         if "error" not in itinerary_data:
             itinerary_data["city"] = req.city
+            itinerary_data["transit"] = req.transit
             raw_itinerary = json.dumps(itinerary_data)
 
         # 7. Save the payload securely to Supabase

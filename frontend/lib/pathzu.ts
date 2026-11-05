@@ -12,6 +12,18 @@ export const QUICK_CITIES = [
   "Los Angeles, CA",
 ];
 
+// Example neighborhoods for the "Where are we starting?" placeholder.
+const CITY_START_EXAMPLES: Record<string, string> = {
+  "Chicago, IL": "Wicker Park, Lincoln Park, Clark & Belmont...",
+  "New York, NY": "West Village, SoHo, Williamsburg...",
+  "Austin, TX": "South Congress, East 6th, Zilker...",
+  "Miami, FL": "Wynwood, South Beach, Brickell...",
+  "Los Angeles, CA": "Silver Lake, Venice, Koreatown...",
+};
+
+export const startPlaceholder = (city: string) =>
+  `e.g. ${CITY_START_EXAMPLES[city] || `a neighborhood or address in ${city.split(",")[0].trim()}...`}`;
+
 export interface PlanStep {
   time?: string;
   title?: string;
@@ -32,6 +44,7 @@ export interface Itinerary {
   weather?: string;
   outfit_tip?: string;
   city?: string;
+  transit?: string; // mode the route was built for; absent on older routes
   plan: PlanStep[];
 }
 
@@ -66,38 +79,47 @@ export const buildShareMessage = (itinerary: Itinerary, routeId: string) => {
     .map((step, i) => `${i + 1}. ${step.place} (${step.time || "TBD"})`)
     .join("\n");
   const text = `Check out this ${city} plan on Pathzu: "${title}"\n\n${stops}`;
-  return { title, text, url, body: `${text}\n\n${url}` };
+  return { title, text, url };
 };
 
-export const canNativeShare = () =>
-  typeof navigator !== "undefined" && typeof navigator.share === "function";
+export type ShareResult = "shared" | "copied" | "cancelled" | "failed";
 
-export const textPlan = (itinerary: Itinerary, routeId: string) => {
-  const { body } = buildShareMessage(itinerary, routeId);
-  window.location.href = `sms:?&body=${encodeURIComponent(body)}`;
-};
-
-// Native OS share drawer where supported, SMS otherwise.
-export const sharePlan = async (itinerary: Itinerary, routeId: string) => {
+// One share action: native share sheet where available (mobile); if that is
+// unsupported or fails, copy the link instead. Dismissing the sheet is not a
+// failure, so it must not trigger the copy fallback.
+export const sharePlan = async (
+  itinerary: Itinerary,
+  routeId: string,
+): Promise<ShareResult> => {
   const { title, text, url } = buildShareMessage(itinerary, routeId);
-  if (canNativeShare()) {
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
     try {
       await navigator.share({ title, text, url });
-    } catch {
-      // User dismissed the drawer; nothing to do.
+      return "shared";
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return "cancelled";
+      }
     }
-    return;
   }
-  textPlan(itinerary, routeId);
-};
-
-export const copyPlanLink = async (routeId: string) => {
-  await navigator.clipboard.writeText(`${window.location.origin}/route/${routeId}`);
+  try {
+    await navigator.clipboard.writeText(url);
+    return "copied";
+  } catch {
+    return "failed";
+  }
 };
 
 // --- City auto-detection -------------------------------------------------
 
 const GEO_TIMEOUT_MS = 6000;
+
+export interface DetectedLocation {
+  city: string; // "City, ST" (US/CA) or "City, Country"
+  // Neighborhood or coordinates to pre-fill "Where are we starting?".
+  // null when we only know the city (IP fallback), so the user types it.
+  start: string | null;
+}
 
 // "City, ST" for US/Canada; "City, Country" elsewhere (the backend only reads
 // a 2-letter state code, so a country name is simply ignored by Ticketmaster).
@@ -125,7 +147,10 @@ const getBrowserPosition = () =>
     });
   });
 
-const cityFromCoords = async (lat: number, lng: number) => {
+const locationFromCoords = async (
+  lat: number,
+  lng: number,
+): Promise<DetectedLocation | null> => {
   const res = await fetch(
     `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`,
     { signal: AbortSignal.timeout(GEO_TIMEOUT_MS) },
@@ -133,29 +158,39 @@ const cityFromCoords = async (lat: number, lng: number) => {
   const d = await res.json();
   // principalSubdivisionCode looks like "US-IL"
   const stateCode = (d.principalSubdivisionCode || "").split("-")[1];
-  return formatCity(d.city || d.locality, stateCode, d.countryCode, d.countryName);
+  const cityName = d.city || d.locality;
+  const city = formatCity(cityName, stateCode, d.countryCode, d.countryName);
+  if (!city) return null;
+  // `locality` is often the neighborhood; if it just repeats the city, fall
+  // back to exact coordinates, which the backend/Gemini already understand.
+  const start =
+    d.locality && d.locality !== d.city
+      ? d.locality
+      : `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+  return { city, start };
 };
 
-const cityFromIp = async () => {
+const locationFromIp = async (): Promise<DetectedLocation | null> => {
   const res = await fetch("https://ipapi.co/json/", {
     signal: AbortSignal.timeout(GEO_TIMEOUT_MS),
   });
   const d = await res.json();
-  return formatCity(d.city, d.region_code, d.country_code, d.country_name);
+  const city = formatCity(d.city, d.region_code, d.country_code, d.country_name);
+  return city ? { city, start: null } : null;
 };
 
 // Browser geolocation first; if it's denied, times out, or the reverse lookup
 // fails, fall back to IP so detection almost never comes up empty.
-export const detectCity = async (): Promise<string | null> => {
+export const detectLocation = async (): Promise<DetectedLocation | null> => {
   try {
     const { coords } = await getBrowserPosition();
-    const city = await cityFromCoords(coords.latitude, coords.longitude);
-    if (city) return city;
+    const found = await locationFromCoords(coords.latitude, coords.longitude);
+    if (found) return found;
   } catch {
     // fall through to IP lookup
   }
   try {
-    return await cityFromIp();
+    return await locationFromIp();
   } catch {
     return null;
   }

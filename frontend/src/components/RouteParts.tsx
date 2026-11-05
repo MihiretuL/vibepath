@@ -1,27 +1,22 @@
 "use client";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import Image from "next/image";
 import {
   Car,
   Check,
   Clock,
   DollarSign,
-  Link2,
   Loader2,
   MapPin,
-  MessageSquare,
   Navigation,
   RefreshCw,
   Share2,
 } from "lucide-react";
 import {
-  canNativeShare,
-  copyPlanLink,
   getCity,
   openMapsToSpot,
   requestUberToSpot,
   sharePlan,
-  textPlan,
   type Itinerary,
   type PlanStep,
 } from "../../lib/pathzu";
@@ -36,7 +31,7 @@ export function StartRouteButton({ itinerary }: { itinerary: Itinerary }) {
   return (
     <button
       onClick={() => requestUberToSpot(first, getCity(itinerary))}
-      className="w-full max-w-2xl mx-auto mb-8 px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 text-white rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-3 shadow-[0_10px_40px_rgba(168,85,247,0.25)] active:scale-[0.98] transition-all"
+      className="w-full max-w-2xl mx-auto mb-8 px-6 py-4 bg-black hover:bg-gray-900 text-white border border-white/20 rounded-2xl font-bold text-sm sm:text-base flex items-center justify-center gap-3 active:scale-[0.98] transition-all"
     >
       <Car className="w-5 h-5 shrink-0" />
       <span className="truncate">Start Route: Uber to {first.place}</span>
@@ -54,50 +49,30 @@ export function ShareActions({
   children?: ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
-  const [nativeShare, setNativeShare] = useState(false);
 
-  // navigator.share is only known on the client.
-  useEffect(() => setNativeShare(canNativeShare()), []);
-
-  const handleCopy = async () => {
-    try {
-      await copyPlanLink(routeId);
+  // Native share sheet on mobile; copies the link on desktop (or if sharing fails).
+  const handleShare = async () => {
+    const result = await sharePlan(itinerary, routeId);
+    if (result === "copied") {
       setCopied(true);
-      setTimeout(() => setCopied(false), 2500);
-    } catch {
-      alert("Couldn't copy the link. Try again!");
+      setTimeout(() => setCopied(false), 2000);
+    } else if (result === "failed") {
+      alert("Couldn't share or copy the link. Try again!");
     }
   };
 
-  const secondary = `px-5 py-3 ${GLASS_CARD} text-white rounded-full text-sm font-bold flex items-center gap-2 active:scale-95`;
-
   return (
     <div className="mt-6 flex flex-wrap justify-center gap-3">
-      {nativeShare && (
-        <button
-          onClick={() => sharePlan(itinerary, routeId)}
-          className="px-6 py-3 bg-white hover:bg-neutral-200 text-black rounded-full text-sm font-bold transition-all shadow-[0_5px_20px_rgba(255,255,255,0.1)] flex items-center gap-2 active:scale-95"
-        >
-          <Share2 className="w-4 h-4" /> Share
-        </button>
-      )}
       <button
-        onClick={() => textPlan(itinerary, routeId)}
-        className={
-          nativeShare
-            ? secondary
-            : "px-6 py-3 bg-white hover:bg-neutral-200 text-black rounded-full text-sm font-bold transition-all shadow-[0_5px_20px_rgba(255,255,255,0.1)] flex items-center gap-2 active:scale-95"
-        }
+        onClick={handleShare}
+        className="px-6 py-3 bg-white hover:bg-neutral-200 text-black rounded-full text-sm font-bold transition-all shadow-[0_5px_20px_rgba(255,255,255,0.1)] flex items-center gap-2 active:scale-95"
       >
-        <MessageSquare className="w-4 h-4" /> Text Plan
-      </button>
-      <button onClick={handleCopy} className={secondary}>
         {copied ? (
-          <Check className="w-4 h-4 text-emerald-400" />
+          <Check className="w-4 h-4 text-emerald-600" />
         ) : (
-          <Link2 className="w-4 h-4" />
+          <Share2 className="w-4 h-4" />
         )}
-        {copied ? "Copied!" : "Copy Link"}
+        {copied ? "Copied!" : "Share"}
       </button>
       {children}
     </div>

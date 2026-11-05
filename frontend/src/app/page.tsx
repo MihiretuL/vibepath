@@ -26,6 +26,8 @@ import {
   MessageCircle,
   PartyPopper,
   Plane,
+  Plus,
+  Search,
   Sparkles,
   Star,
   Ticket,
@@ -41,8 +43,9 @@ import {
 import {
   DEFAULT_CITY,
   QUICK_CITIES,
-  detectCity,
+  detectLocation,
   getCity,
+  startPlaceholder,
 } from "../../lib/pathzu";
 import {
   GLASS_CARD,
@@ -69,13 +72,21 @@ const PARTY_OPTIONS: PillOption[] = [
 ];
 
 const MOOD_OPTIONS: PillOption[] = [
-  { value: "\u{1F6B6} Walking Route", label: "Walking Route", Icon: Footprints },
+  {
+    value: "\u{1F6B6} Walking Route",
+    label: "Walking Route",
+    Icon: Footprints,
+  },
   { value: "\u{1F377} Chill Date", label: "Chill Date", Icon: Wine },
   { value: "\u{1F9D8} Reset Mind", label: "Reset Mind", Icon: Brain },
   { value: "\u2615 Coffee Run", label: "Coffee Run", Icon: Coffee },
   { value: "\u{1F415} Walk Dog", label: "Walk Dog", Icon: Dog },
   { value: "\u{1F306} Explore City", label: "Explore City", Icon: Building2 },
-  { value: "\u{1F5E3}\uFE0F Deep Talks", label: "Deep Talks", Icon: MessageCircle },
+  {
+    value: "\u{1F5E3}\uFE0F Deep Talks",
+    label: "Deep Talks",
+    Icon: MessageCircle,
+  },
   { value: "\u{1F3C3} Running Route", label: "Running Route", Icon: Activity },
   { value: "\u{1FAA9} Turn Up", label: "Turn Up", Icon: PartyPopper },
   { value: "\u{1F4F8} Aesthetic", label: "Aesthetic", Icon: Camera },
@@ -110,6 +121,8 @@ export default function Home() {
             vibe: itinerary.title || "custom vibe",
             spot_to_replace: currentSpot,
             current_route: itinerary,
+            // Mode the route was built for, so a swap keeps it walkable.
+            transit: itinerary.transit || transit,
           }),
         },
       );
@@ -198,37 +211,60 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState("");
   const [isPaywall, setIsPaywall] = useState(false);
   const [city, setCity] = useState(DEFAULT_CITY);
+  const [nearMeActive, setNearMeActive] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customCity, setCustomCity] = useState("");
   const [detectingCity, setDetectingCity] = useState(false);
   const [cityDetectFailed, setCityDetectFailed] = useState(false);
-  // Once the user picks or types a city, auto-detection must never overwrite it.
+  // Once the user picks a city, auto-detection must never overwrite it.
   const cityPickedManually = useRef(false);
 
   const pickCity = (c: string) => {
     cityPickedManually.current = true;
     setCityDetectFailed(false);
+    setNearMeActive(false);
     setCity(c);
   };
 
-  // "Near Me" button: explicit request, so it always applies the result.
+  const pickQuickCity = (c: string) => {
+    setCustomOpen(false);
+    pickCity(c);
+  };
+
+  // Typing in the "Other" box sets any city nationwide (e.g. "Nashville, TN").
+  const handleCustomCity = (value: string) => {
+    setCustomCity(value);
+    if (value.trim()) pickCity(value.trim());
+  };
+
+  // A city that isn't a pill and wasn't detected must have been typed in.
+  const customActive = !nearMeActive && !QUICK_CITIES.includes(city);
+
+  // "Near Me" button: explicit request, so it always applies the result and
+  // pre-fills the starting point (neighborhood, or exact coordinates).
   const handleNearMe = async () => {
     setDetectingCity(true);
     setCityDetectFailed(false);
-    const detected = await detectCity();
-    if (detected) {
+    const found = await detectLocation();
+    if (found) {
       cityPickedManually.current = true;
-      setCity(detected);
+      setCustomOpen(false);
+      setNearMeActive(true);
+      setCity(found.city);
+      if (found.start) setLocation(found.start);
     } else {
       setCityDetectFailed(true);
     }
     setDetectingCity(false);
   };
 
-  // Silent auto-detect on first load, unless the user already chose a city.
+  // Silent auto-detect on first load (city only), unless the user already chose one.
   useEffect(() => {
     let cancelled = false;
-    detectCity().then((detected) => {
-      if (detected && !cancelled && !cityPickedManually.current) {
-        setCity(detected);
+    detectLocation().then((found) => {
+      if (found && !cancelled && !cityPickedManually.current) {
+        setCity(found.city);
+        setNearMeActive(true);
       }
     });
     return () => {
@@ -306,11 +342,32 @@ export default function Home() {
     }
   };
 
+  // const handleLogin = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setAuthLoading(true);
+  //   setAuthMsg("");
+  //   const { error } = await supabase.auth.signInWithOtp({ email });
+  //   if (error) setAuthMsg(error.message);
+  //   else {
+  //     setAuthMsg("Magic link sent! Check your email.");
+  //     setEmail("");
+  //   }
+  //   setAuthLoading(false);
+  // };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthLoading(true);
     setAuthMsg("");
-    const { error } = await supabase.auth.signInWithOtp({ email });
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        // This forces Supabase to return to localhost in dev, and pathzu.com in prod
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
     if (error) setAuthMsg(error.message);
     else {
       setAuthMsg("Magic link sent! Check your email.");
@@ -348,7 +405,8 @@ export default function Home() {
 
   // --- GENERATE ROUTE ---
   const generateItinerary = async () => {
-    if (!mood && !vibe) return;
+    // A starting point is mandatory (the Enter key also routes through here).
+    if ((!mood && !vibe) || !location.trim()) return;
 
     setLoading(true);
     setErrorMsg("");
@@ -417,6 +475,7 @@ export default function Home() {
         }
 
         parsedData.city = parsedData.city || selectedCity;
+        parsedData.transit = parsedData.transit || transit;
         setItinerary(parsedData);
       }
     } catch (error) {
@@ -636,21 +695,29 @@ export default function Home() {
               <button
                 onClick={handleNearMe}
                 disabled={detectingCity}
-                className="px-4 py-2 rounded-full text-sm font-semibold border transition-all inline-flex items-center gap-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 border-transparent text-white disabled:opacity-70"
+                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all inline-flex items-center gap-2 disabled:opacity-70 ${
+                  nearMeActive || detectingCity
+                    ? "bg-white text-black border-white"
+                    : "bg-[#1a1a1a] text-neutral-300 border-neutral-700 hover:border-neutral-500"
+                }`}
               >
                 {detectingCity ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <LocateFixed className="w-4 h-4" />
                 )}
-                {detectingCity ? "Locating..." : "Near Me"}
+                {detectingCity
+                  ? "Locating..."
+                  : nearMeActive
+                    ? `Near Me · ${city.split(",")[0].trim()}`
+                    : "Near Me"}
               </button>
               {QUICK_CITIES.map((c) => (
                 <button
                   key={c}
-                  onClick={() => pickCity(c)}
+                  onClick={() => pickQuickCity(c)}
                   className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all ${
-                    city === c
+                    city === c && !nearMeActive
                       ? "bg-white text-black border-white"
                       : "bg-[#1a1a1a] text-neutral-400 border-neutral-800 hover:border-neutral-600"
                   }`}
@@ -658,35 +725,58 @@ export default function Home() {
                   {c}
                 </button>
               ))}
-            </div>
-            <div className="flex items-center bg-[#1a1a1a] border border-neutral-800 rounded-xl px-4 focus-within:border-pink-500/50 transition-all">
-              <MapPin className="w-4 h-4 text-neutral-500 shrink-0" />
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => pickCity(e.target.value)}
-                placeholder="Or type any city (e.g. Seattle, WA)"
-                className="flex-1 bg-transparent px-3 py-3 text-sm focus:outline-none placeholder-neutral-600 text-white"
-              />
+              {/* "+ Other" expands into an inline search box for any city */}
+              <button
+                onClick={() => {
+                  if (!customOpen && customCity.trim()) pickCity(customCity.trim());
+                  setCustomOpen(!customOpen);
+                }}
+                className={`px-4 py-2 rounded-full text-sm font-semibold border transition-all inline-flex items-center gap-2 ${
+                  customOpen || customActive
+                    ? "bg-white text-black border-white"
+                    : "bg-white/[0.03] backdrop-blur-xl text-neutral-400 border-white/[0.08] hover:border-white/[0.15]"
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                {!customOpen && customActive ? city.split(",")[0].trim() : "Other"}
+              </button>
+              {customOpen && (
+                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] backdrop-blur-xl border border-white/[0.15] focus-within:border-white/40 transition-all">
+                  <Search className="w-4 h-4 text-neutral-500 shrink-0" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={customCity}
+                    onChange={(e) => handleCustomCity(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                    placeholder="Search City... (e.g. Nashville, TN)"
+                    className="bg-transparent text-sm w-56 focus:outline-none placeholder-neutral-600 text-white"
+                  />
+                </div>
+              )}
             </div>
             {cityDetectFailed && (
-              <p className="mt-2 text-xs text-neutral-500">
-                Couldn&apos;t detect your city automatically. Pick one above or
-                type it in.
+              <p className="text-xs text-neutral-500">
+                Couldn&apos;t detect your location automatically. Pick a city
+                above and enter a starting point below.
               </p>
             )}
           </div>
 
           <div className="mb-8 pb-8 border-b border-neutral-800/50">
             <label className="text-neutral-500 text-xs font-bold uppercase tracking-widest mb-3 block">
-              Where are we starting?
+              Where are we starting?{" "}
+              <span className="text-pink-500" title="Required">
+                *
+              </span>
             </label>
             <div className="flex bg-[#1a1a1a] border border-neutral-800 rounded-xl p-1.5 focus-within:border-pink-500/50 transition-all">
               <input
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="Neighborhood or cross street (e.g. Clark & Belmont)..."
+                required
+                placeholder={startPlaceholder(city)}
                 className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder-neutral-600 text-white"
               />
               <button
@@ -825,7 +915,7 @@ export default function Home() {
               />
               <button
                 onClick={generateItinerary}
-                disabled={loading || (!mood && !vibe)}
+                disabled={loading || (!mood && !vibe) || !location.trim()}
                 className="px-8 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 text-white rounded-lg font-bold text-sm"
               >
                 {loading ? "Routing..." : "Route It"}
@@ -864,7 +954,8 @@ export default function Home() {
 
             <div className="bg-white/[0.03] backdrop-blur-xl border border-indigo-500/20 hover:border-indigo-500/40 transition-all duration-300 p-5 rounded-2xl text-left w-full mx-auto">
               <p className="text-white font-bold mb-2 text-sm flex items-center gap-2">
-                <Cloud className="w-4 h-4 text-indigo-400 shrink-0" /> Live Weather: {itinerary.weather}
+                <Cloud className="w-4 h-4 text-indigo-400 shrink-0" /> Live
+                Weather: {itinerary.weather}
               </p>
               <p className="text-indigo-300 text-sm flex items-start gap-2">
                 <Sparkles className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />

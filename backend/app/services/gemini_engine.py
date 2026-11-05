@@ -181,15 +181,15 @@ def generate_vibe_itinerary(req) -> str:
     - Specifics / Anchor: {req.prompt}
 
     CRITICAL RULES:
-    1. 🗺️ STRICT GEO-FENCING (NO TOURIST TRAPS): The user is starting near "{req.location}". The ENTIRE 3-step route MUST stay within a "{req.distance}" radius of this exact starting point. DO NOT route them to famous downtown tourist traps in {city} UNLESS their starting location is explicitly downtown. Prioritize real, local neighborhood gems, hidden parks, and nearby streets.
+    1. 🗺️ CITY LOCK + STRICT GEO-FENCING (NO TOURIST TRAPS): The user is in {city}. Build the route EXCLUSIVELY for {city}: every stop must be a real place located in {city}, and you must never assume or default to any other city. The user is starting near "{req.location}". The ENTIRE 3-step route MUST stay within a "{req.distance}" radius of this exact starting point. DO NOT route them to famous downtown tourist traps in {city} UNLESS their starting location is explicitly downtown. Prioritize real, local neighborhood gems, hidden parks, and nearby streets.
     2. ⚓ ANCHOR DESTINATION: The user provided specific details here: "{req.prompt}". If they mentioned a specific place, restaurant, or venue, you MUST make that place Step 1 or Step 2. Build the rest of the route geographically around that anchor place so it makes sense for "{req.transit}".
     3. VIBE AWARENESS: If the Mood is "Walking Route", "Running Route", or "Walk Dog", the steps MUST focus on physical paths, parks, or scenic neighborhood streets near their starting location. The movement is the main event. 
     4. EVENT AWARENESS: Look at the LIVE CITY EVENTS. If an event matches the user's mood and is within their radius, try to include it. If not, ignore the events.
-    5. STRICT TRANSIT & REALITY CHECK: The user selected "{req.transit}". 
-    - If they chose "Walk", the route MUST stay within a 2-mile radius of their starting location, EVEN IF the Radius constraint says "Anywhere". Humans cannot walk across the entire city.
-    - If they chose "Public Transit", every step must be reachable by {city}'s real public transit system (name its actual lines/modes, e.g. subway, metro, bus, light rail) with a short walk at either end. If {city} has little or no public transit, keep the steps close together and say so briefly instead of inventing lines.
+    5. STRICT TRANSIT & REALITY CHECK: The user selected "{req.transit}" (the option labelled "Walk" means Walking; the option labelled "Public Transit" means Public Transit).
+    - If the user selects 'Walking', EVERY stop must be within a 15-minute walk (maximum 0.75 miles) of the previous stop. Keep the entire itinerary constrained to a single, highly walkable neighborhood. Do not suggest a route that requires a car. This rule overrides the Radius constraint, even if Radius says "Anywhere".
+    - If the user selects 'Public Transit', evaluate the requested city's actual rail/bus infrastructure. If the city lacks robust public transit (e.g., Austin, Miami), cluster the stops tightly together to minimize transit reliance, and explicitly warn the user in the 'Concierge Tip' about the local transit limitations. If the city does have robust transit, name its real lines/modes and keep each stop a short walk from a station or stop.
     - Do NOT mention driving/parking if they chose Walk or Public Transit. Do NOT mention public transit/trains if they chose Walk or Drive. Ensure the distance between Steps 1, 2, and 3 is logical for this transit type.
-    6. WEATHER AWARENESS: Write a 1-sentence 'outfit_tip' suggesting what to wear specifically for "{req.transit}" in "{current_weather}".
+    6. WEATHER AWARENESS + CONCIERGE TIP: The 'outfit_tip' field is shown to the user as the 'Concierge Tip'. Write 1-2 sentences suggesting what to wear specifically for "{req.transit}" in "{current_weather}". If rule 5 required a public transit limitations warning, put that warning in this field as well (keep it to 2 sentences total).
     7. Keep location descriptions short (Max 15 words).
     8. Return ONLY valid JSON.
     9. BUDGET & PRICING: The user has a budget of "{req.budget}". For EVERY step, you MUST provide a realistic 'cost_estimate'. If it is a park or walking path, write "Free". If it's a cafe/restaurant, estimate the cost per person (e.g., "$$ - Approx $25"). If it's a museum or venue, estimate the entry fee (e.g., "$15 Entry").
@@ -264,6 +264,21 @@ def swap_spot_with_ai(req) -> dict:
     client = genai.Client(api_key=api_key)
     
     city = req.current_route.get("city") or DEFAULT_CITY
+    # Transit mode from the request, else the one saved with the route (older routes have none).
+    transit = (getattr(req, "transit", None) or req.current_route.get("transit") or "").lower()
+    transit_rule = ""
+    if "walk" in transit:
+        transit_rule = (
+            "WALKING CONSTRAINT: The user is traveling on foot. The new spot MUST be within a "
+            "15-minute walk (maximum 0.75 miles) of the stop before it and the stop after it in the "
+            "current itinerary (whichever exist), so the entire itinerary stays within a single, highly "
+            "walkable neighborhood. Do not suggest a spot that requires a car."
+        )
+    elif "public transit" in transit:
+        transit_rule = (
+            f"TRANSIT CONSTRAINT: The user is using public transit. Keep the new spot close to the other stops "
+            f"and easy to reach on {city}'s real public transit (or a short walk from the neighboring stops)."
+        )
     current_route_str = json.dumps(req.current_route)
     spot_to_replace_str = json.dumps(req.spot_to_replace)
 
@@ -280,6 +295,7 @@ def swap_spot_with_ai(req) -> dict:
 
     YOUR MISSION:
     Provide ONE completely new recommendation in {city} that fits the '{req.vibe}' vibe, makes geographical sense with the rest of the route, and is completely different from the spot they are swapping out. Do not suggest a tourist trap. Keep the description under 15 words.
+    {transit_rule}
 
     You must return ONLY a single JSON object representing the new spot. Do not wrap it in an array.
     
