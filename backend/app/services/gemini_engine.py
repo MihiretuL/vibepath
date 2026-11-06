@@ -6,6 +6,8 @@ import urllib.parse
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
+from app.services.discovery_engine import DEFAULT_CITY, get_city_context, parse_city
+
 # 1. NEW SDK IMPORTS
 from google import genai
 from google.genai import types
@@ -14,15 +16,7 @@ load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 weather_key = os.getenv("WEATHER_API_KEY")
 
-DEFAULT_CITY = "Chicago, IL"
-
-def parse_city(city_string: str):
-    """'Austin, TX' -> ('Austin', 'TX'). State code is None unless it is a 2-letter code."""
-    parts = [p.strip() for p in (city_string or DEFAULT_CITY).split(",") if p.strip()]
-    if not parts:
-        return "Chicago", "IL"
-    state = parts[1].upper() if len(parts) > 1 and len(parts[1]) == 2 and parts[1].isalpha() else None
-    return parts[0], state
+# DEFAULT_CITY / parse_city live in discovery_engine (shared with the events endpoint)
 
 def get_live_weather(city: str = DEFAULT_CITY):
     """Silently fetches the current weather for the route's city behind the scenes."""
@@ -83,64 +77,7 @@ def enrich_step(step, city):
     step["lng"] = details["lng"]
     step["formatted_address"] = details["formatted_address"] or f"{step['place']}, {city}"
 
-def get_live_events(location_string: str, city_string: str = DEFAULT_CITY, timing: str = "") -> str:
-    """Silently fetches live events happening in the route's city on the relevant day."""
-    print(f"🎸 Checking Live Events for: {location_string} ({city_string})")
-    tm_key = os.getenv("TICKETMASTER_API_KEY")
-
-    if not tm_key:
-        return "No live event data available."
-
-    try:
-        # Lock Ticketmaster to the selected city (and state, when given) so GPS coordinates
-        # in the starting location don't confuse the API.
-        city, state_code = parse_city(city_string)
-
-        # One-day window: today (from right now) or, for "Tomorrow", the following 24h.
-        start = datetime.utcnow() + (timedelta(hours=24) if timing == "Tomorrow" else timedelta())
-        end = start + timedelta(hours=24)
-        params = {
-            "apikey": tm_key,
-            "city": city,
-            "startDateTime": start.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "endDateTime": end.strftime('%Y-%m-%dT%H:%M:%SZ'),
-            "sort": "date,asc",
-            "size": 3,
-        }
-        if state_code:
-            params["stateCode"] = state_code
-
-        # Call Ticketmaster's Discovery API
-        response = requests.get("https://app.ticketmaster.com/discovery/v2/events.json", params=params, timeout=5)
-        data = response.json()
-
-        if response.status_code != 200:
-            print(f"❌ Ticketmaster API Error: {response.status_code}")
-            return "Live event data currently offline."
-
-        # Parse the events
-        if "_embedded" in data and "events" in data["_embedded"]:
-            events = data["_embedded"]["events"]
-            event_list = []
-
-            for e in events:
-                name = e.get("name", "Unknown Event")
-                venues = e.get("_embedded", {}).get("venues", [{}])
-                venue_name = venues[0].get("name", "Unknown Venue") if venues else "Unknown Venue"
-                event_list.append(f"- {name} at {venue_name}")
-
-            pulse = "\n".join(event_list)
-            print(f"📡 Event Pulse Grabbed:\n{pulse}")
-            return pulse
-        else:
-            print(f"📡 Event Pulse: Ticketmaster returned zero events for {city_string}.")
-            return "No major ticketed events found today."
-
-    except Exception as e:
-        print(f"❌ Event Pulse Failed: {e}")
-        return "Live event data currently offline."
-
-def generate_vibe_itinerary(req) -> str:
+async def generate_vibe_itinerary(req) -> str:
     if not api_key:
         return '{"error": "Could not find GEMINI_API_KEY."}'
     
@@ -150,7 +87,24 @@ def generate_vibe_itinerary(req) -> str:
     # 3. GRAB THE LIVE DATA PULSE
     city = getattr(req, "city", None) or DEFAULT_CITY
     current_weather = get_live_weather(city)
-    live_events = get_live_events(req.location, city, req.timing)
+    # Yelp + Eventbrite + Ticketmaster, fetched concurrently. Each source fails soft
+    # to an empty list, so this never blocks the route.
+    try:
+        city_context = await get_city_context(
+            city, req.location, req.timing, getattr(req, "start_time", None)
+        )
+    except Exception as e:
+        print(f"⚠️ City context failed entirely: {e}")
+        city_context = {}
+    has_context = any(
+        city_context.get(k)
+        for k in ("top_yelp_venues", "eventbrite_events", "ticketmaster_events")
+    )
+    live_context = (
+        json.dumps(city_context, indent=2, ensure_ascii=False)
+        if has_context
+        else "No live data available right now. Rely on your own knowledge of real, currently operating local spots."
+    )
     
     time_rule = ""
     if req.timing == "Later Tonight":
@@ -181,8 +135,8 @@ def generate_vibe_itinerary(req) -> str:
     - Starting Location: {req.location}
     - Current Local Time: {req.time_context}
     - Current Weather: {current_weather}
-    - 🚨 LIVE CITY EVENTS TODAY: 
-    {live_events}
+    - 🚨 REAL-TIME CITY CONTEXT (live events + top-rated local venues, JSON):
+    {live_context}
     - When: {req.timing}{(' at ' + req.start_time) if getattr(req, 'start_time', None) else ''}
     - Transit: {req.transit}
     - Radius: {req.distance}
@@ -195,7 +149,7 @@ def generate_vibe_itinerary(req) -> str:
     1. 🗺️ CITY LOCK + STRICT GEO-FENCING (NO TOURIST TRAPS): The user is in {city}. Build the route EXCLUSIVELY for {city}: every stop must be a real place located in {city}, and you must never assume or default to any other city. The user is starting near "{req.location}". The ENTIRE 3-step route MUST stay within a "{req.distance}" radius of this exact starting point. DO NOT route them to famous downtown tourist traps in {city} UNLESS their starting location is explicitly downtown. Prioritize real, local neighborhood gems, hidden parks, and nearby streets.
     2. ⚓ ANCHOR DESTINATION: The user provided specific details here: "{req.prompt}". If they mentioned a specific place, restaurant, or venue, you MUST make that place Step 1 or Step 2. Build the rest of the route geographically around that anchor place so it makes sense for "{req.transit}".
     3. VIBE AWARENESS: If the Mood is "Walking Route", "Running Route", or "Walk Dog", the steps MUST focus on physical paths, parks, or scenic neighborhood streets near their starting location. The movement is the main event. 
-    4. EVENT AWARENESS: Look at the LIVE CITY EVENTS. If an event matches the user's mood and is within their radius, try to include it. If not, ignore the events.
+    4. REAL-WORLD DATA FIRST: You are an elite concierge. I am providing you with real-time live events and top-rated local venues in the REAL-TIME CITY CONTEXT. You MUST prioritize building the itinerary using these provided real-world locations over your general training data to ensure maximum accuracy. Use only the ones that fit the user's mood, radius, transit and budget rules; fill any remaining stops from your own knowledge of real local places. If the context says no live data is available, rely on your own knowledge.
     5. STRICT TRANSIT & REALITY CHECK: The user selected "{req.transit}" (the option labelled "Walk" means Walking; the option labelled "Public Transit" means Public Transit).
     - If the user selects 'Walking', EVERY stop must be within a 15-minute walk (maximum 0.75 miles) of the previous stop. Keep the entire itinerary constrained to a single, highly walkable neighborhood. Do not suggest a route that requires a car. This rule overrides the Radius constraint, even if Radius says "Anywhere".
     - If the user selects 'Public Transit', evaluate the requested city's actual rail/bus infrastructure. If the city lacks robust public transit (e.g., Austin, Miami), cluster the stops tightly together to minimize transit reliance, and explicitly warn the user in the 'Concierge Tip' about the local transit limitations. If the city does have robust transit, name its real lines/modes and keep each stop a short walk from a station or stop.

@@ -156,7 +156,7 @@ async def generate_route(req: VibeRequest):
         try:
             print(f"🤖 Asking AI for route (Attempt {attempt + 1}/{max_retries})...")
             # Try to get the route
-            raw_itinerary = generate_vibe_itinerary(req)
+            raw_itinerary = await generate_vibe_itinerary(req)
             
             # If it works perfectly, break out of the retry loop!
             break 
