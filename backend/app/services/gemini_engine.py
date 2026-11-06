@@ -202,6 +202,12 @@ async def generate_vibe_itinerary(req) -> str:
                         if place_name:
                             print(f"📸 Fetching photo and location for: {place_name}...")
                             enrich_step(step, city)
+                    # Vault cover: the first stop's Google photo, or the next stop that
+                    # has one if Google had no photo for stop 1.
+                    itinerary_data["cover_photo"] = next(
+                        (s["image_url"] for s in itinerary_data["plan"] if s.get("image_url")),
+                        None,
+                    )
                 itinerary_data["city"] = city
                 return json.dumps(itinerary_data)
             except Exception as parse_error:

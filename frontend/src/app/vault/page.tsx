@@ -102,8 +102,12 @@ export default function VaultPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {itineraries.map((route) => {
               // 🚨 EXTRAC TING THE THUMBNAIL PHOTO
-              // We grab the first step's image_url if it exists.
-              const thumbnailPhoto = route.full_json?.plan?.[0]?.image_url;
+              // First stop with a Google photo (so swaps stay accurate); older
+              // routes fall back to the saved cover_photo.
+              const thumbnailPhoto: string | undefined =
+                route.full_json?.plan?.find(
+                  (s: { image_url?: string | null }) => s.image_url,
+                )?.image_url || route.full_json?.cover_photo;
 
               return (
                 <Link href={`/route/${route.id}`} key={route.id}>
@@ -123,9 +127,9 @@ export default function VaultPage() {
                         <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
                       </div>
                     ) : (
-                      // Fallback if no photo found
-                      <div className="w-full h-48 bg-neutral-800 flex items-center justify-center text-neutral-600">
-                        No Photo
+                      // No Google photo exists for any stop: quiet gradient, no text
+                      <div className="w-full h-48 bg-gradient-to-br from-neutral-800 to-neutral-950 flex items-center justify-center">
+                        <MapPin className="w-8 h-8 text-white/20" />
                       </div>
                     )}
 

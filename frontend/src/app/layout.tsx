@@ -12,10 +12,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// 🚨 BRAND NEW PATHZU METADATA
+const TITLE = "Pathzu | AI-Powered Travel Concierge";
+const DESCRIPTION =
+  "Generate instant, hyper-local itineraries and discover live events in your city.";
+
+// Icons: src/app/{favicon.ico, icon.svg, apple-icon.png}, also declared explicitly
+// so Next always injects them into <head>.
 export const metadata: Metadata = {
-  title: "Pathzu | Your Instant Chicago Itinerary",
-  description: "AI-powered urban exploration and routing.",
+  title: TITLE,
+  description: DESCRIPTION,
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-icon.png",
+  },
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    siteName: "Pathzu",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({

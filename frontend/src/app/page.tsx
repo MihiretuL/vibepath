@@ -51,11 +51,7 @@ import {
   getCity,
   startPlaceholder,
 } from "../../lib/pathzu";
-import {
-  GLASS_CARD,
-  ShareActions,
-  StepCard,
-} from "../components/RouteParts";
+import { GLASS_CARD, ShareActions, StepCard } from "../components/RouteParts";
 
 const CITY_PILLS: { city: string; name: string; Icon: LucideIcon }[] = [
   { city: "Chicago, IL", name: "Chicago", Icon: Wind },
@@ -77,7 +73,9 @@ const buildTimeSlots = (fromHour: number, toHour: number) => {
   for (let h = fromHour; h <= toHour; h++) {
     for (const m of [0, 30]) {
       if (h === toHour && m > 0) continue;
-      slots.push(`${h % 12 || 12}:${m === 0 ? "00" : "30"} ${h >= 12 ? "PM" : "AM"}`);
+      slots.push(
+        `${h % 12 || 12}:${m === 0 ? "00" : "30"} ${h >= 12 ? "PM" : "AM"}`,
+      );
     }
   }
   return slots;
@@ -236,6 +234,7 @@ export default function Home() {
 
   // --- APP STATE ---
   const [location, setLocation] = useState("");
+  const [locationError, setLocationError] = useState(false);
   const [findingGPS, setFindingGPS] = useState(false);
   const [timing, setTiming] = useState("Right Now");
   // Exact start time (e.g. "7:30 PM") for Later Tonight / Tomorrow
@@ -296,7 +295,10 @@ export default function Home() {
       setCustomOpen(false);
       setNearMeActive(true);
       setCity(found.city);
-      if (found.start) setLocation(found.start);
+      if (found.start) {
+        setLocation(found.start);
+        setLocationError(false);
+      }
     } else {
       setCityDetectFailed(true);
     }
@@ -434,6 +436,7 @@ export default function Home() {
           setLocation(
             `${position.coords.latitude}, ${position.coords.longitude}`,
           );
+          setLocationError(false);
           setFindingGPS(false);
         },
         (error) => {
@@ -451,7 +454,14 @@ export default function Home() {
   // --- GENERATE ROUTE ---
   const generateItinerary = async () => {
     // A starting point is mandatory (the Enter key also routes through here).
-    if ((!mood && !vibe) || !location.trim()) return;
+    if (!location.trim()) {
+      setLocationError(true);
+      return;
+    }
+    if (!mood && !vibe) {
+      setErrorMsg("Pick a mood or add a few details first.");
+      return;
+    }
 
     setLoading(true);
     setErrorMsg("");
@@ -474,8 +484,7 @@ export default function Home() {
       location: formattedLocation, // 🚨 Using your upgraded location
       city: selectedCity,
       timing,
-      start_time:
-        timing === "Right Now" ? null : startTime,
+      start_time: timing === "Right Now" ? null : startTime,
       transit,
       distance,
       party,
@@ -658,9 +667,17 @@ export default function Home() {
       {/* --- REST OF THE UI --- */}
       <div className="w-full max-w-3xl mt-4 flex flex-col items-center">
         <div className="text-center mb-10">
-          <h1 className="text-5xl sm:text-6xl font-black mb-4 tracking-tighter bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
-            Pathzu.
-          </h1>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/header-mark.svg"
+              alt="Pathzu Logo"
+              className="w-10 h-10 object-contain"
+            />
+            <h1 className="text-5xl sm:text-6xl font-black tracking-tighter bg-gradient-to-r from-purple-400 to-pink-600 bg-clip-text text-transparent">
+              Pathzu.
+            </h1>
+          </div>
           <p className="text-neutral-400 text-lg md:text-xl font-medium mb-8 max-w-xl mx-auto">
             Smart paths, for real life.
           </p>
@@ -702,30 +719,16 @@ export default function Home() {
                   }}
                   className="snap-center text-left shrink-0"
                 >
-                  <div className="flex flex-row h-32 bg-[#121212] rounded-2xl border border-white/10 overflow-hidden cursor-pointer hover:border-white/30 transition-colors shrink-0 w-80">
-                    <div className="w-28 h-full relative shrink-0">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={
-                          event.images?.[0]?.url ||
-                          event.image ||
-                          "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?q=80&w=800"
-                        }
-                        alt={event.name}
-                        className="absolute inset-0 w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 p-3 flex flex-col justify-center overflow-hidden">
-                      <p className="text-orange-400 text-xs font-bold">
-                        {event.time}
-                      </p>
-                      <h3 className="text-white font-bold text-sm line-clamp-2">
-                        {event.name}
-                      </h3>
-                      <p className="text-gray-400 text-xs mt-1 truncate">
-                        {event.venue}
-                      </p>
-                    </div>
+                  <div className="flex flex-col justify-center h-24 bg-[#121212] rounded-xl border border-white/10 p-4 cursor-pointer hover:border-white/30 transition-colors shrink-0 w-72">
+                    <p className="text-orange-400 text-xs font-bold uppercase tracking-wider">
+                      {event.time}
+                    </p>
+                    <h3 className="text-white font-bold text-sm truncate">
+                      {event.name}
+                    </h3>
+                    <p className="text-gray-400 text-xs mt-1 truncate">
+                      {event.venue}
+                    </p>
                   </div>
                 </button>
               ))}
@@ -824,11 +827,20 @@ export default function Home() {
                 *
               </span>
             </label>
-            <div className="flex bg-[#1a1a1a] border border-neutral-800 rounded-xl p-1.5 focus-within:border-pink-500/50 transition-all">
+            <div
+              className={`flex bg-[#1a1a1a] border rounded-xl p-1.5 transition-all ${
+                locationError
+                  ? "border-red-500"
+                  : "border-neutral-800 focus-within:border-pink-500/50"
+              }`}
+            >
               <input
                 type="text"
                 value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(e) => {
+                  setLocation(e.target.value);
+                  setLocationError(false);
+                }}
                 required
                 placeholder={startPlaceholder(city)}
                 className="flex-1 bg-transparent px-4 py-3 text-sm focus:outline-none placeholder-neutral-600 text-white"
@@ -846,6 +858,11 @@ export default function Home() {
                 {findingGPS ? "Locating..." : "GPS"}
               </button>
             </div>
+            {locationError && (
+              <p className="text-red-500 text-xs mt-2" role="alert">
+                Please enter a starting location or tap GPS.
+              </p>
+            )}
           </div>
           {/* Grid Settings */}
           {/* 🚨 ROW 1: THE LOGISTICS (3 Columns) */}
@@ -865,7 +882,7 @@ export default function Home() {
                   </button>
                 ))}
                 {TIME_SLOTS[timing] && (
-                  <div className="flex overflow-x-auto gap-2 pb-2 no-scrollbar -mx-1 px-1">
+                  <div className="flex overflow-x-auto whitespace-nowrap w-full no-scrollbar pb-2 gap-2 pr-8">
                     {TIME_SLOTS[timing].map((t) => (
                       <button
                         key={t}
@@ -986,7 +1003,7 @@ export default function Home() {
               />
               <button
                 onClick={generateItinerary}
-                disabled={loading || (!mood && !vibe) || !location.trim()}
+                disabled={loading}
                 className="px-8 py-3 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-500 hover:to-purple-500 disabled:opacity-50 text-white rounded-lg font-bold text-sm"
               >
                 {loading ? "Routing..." : "Route It"}
